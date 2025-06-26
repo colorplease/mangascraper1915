@@ -43,6 +43,15 @@ class TestDatabaseManager(unittest.TestCase):
         self.original_db_path = getattr(db_utils, 'DB_PATH', None)
         db_utils.DB_PATH = self.db_path
         
+        # Also patch the DB_PATH in utils.config if it exists
+        try:
+            from utils.config import Config
+            if hasattr(Config, 'DB_PATH'):
+                self.original_config_db_path = Config.DB_PATH
+                Config.DB_PATH = self.db_path
+        except ImportError:
+            self.original_config_db_path = None
+        
         self.db_manager = DatabaseManager(self.db_path)
         
         # Sample manga for testing
@@ -67,13 +76,22 @@ class TestDatabaseManager(unittest.TestCase):
         """Clean up after tests."""
         # Close any connections first
         try:
-            self.db_manager = None
+            if hasattr(self, 'db_manager'):
+                self.db_manager = None
         except:
             pass
         
         # Restore original DB_PATH
         if hasattr(self, 'original_db_path') and self.original_db_path:
             db_utils.DB_PATH = self.original_db_path
+        
+        # Restore original config DB_PATH if we patched it
+        if hasattr(self, 'original_config_db_path') and self.original_config_db_path:
+            try:
+                from utils.config import Config
+                Config.DB_PATH = self.original_config_db_path
+            except ImportError:
+                pass
         
         # Clean up database file
         try:

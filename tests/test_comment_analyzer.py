@@ -209,13 +209,12 @@ class TestCommentSummarization(unittest.TestCase):
     
     def test_generate_nltk_summary(self):
         """Test NLTK-based summarization."""
-        # Just test that we can call the function and get a result
-        # This will use NLTK if available, otherwise fall back to simple analysis
+        # Test that we can generate a summary using simple method
+        # This avoids complex NLTK mocking that fails in CI
         try:
             from scraper.comment_analyzer import _generate_simple_summary
             
-            # Since NLTK mocking is complex, just test the simple summary
-            # which should work in all environments
+            # Test the simple summary which should work in all environments
             summary = _generate_simple_summary(self.sample_comments)
             
             # Assertions
@@ -223,19 +222,20 @@ class TestCommentSummarization(unittest.TestCase):
             self.assertIsInstance(summary, str)
             self.assertGreater(len(summary), 50)
             
+            # Verify it contains expected content
+            self.assertIn('frequently mentioned', summary.lower())
+            
         except Exception as e:
             self.skipTest(f"Summary generation failed: {e}")
     
-    @patch('scraper.comment_analyzer.summarize_comments')
-    def test_summarize_comments_fallback_to_simple(self, mock_summarize):
-        """Test fallback to simple summary when NLTK fails."""
-        # Mock the summarize_comments function to call _generate_simple_summary directly
-        from scraper.comment_analyzer import _generate_simple_summary
-        mock_summarize.side_effect = lambda comments: _generate_simple_summary(comments)
+    def test_summarize_comments_function(self):
+        """Test the main summarize_comments function."""
+        from scraper.comment_analyzer import summarize_comments
         
-        summary = mock_summarize(self.sample_comments)
+        # This will use NLTK if available, fall back to simple otherwise
+        summary = summarize_comments(self.sample_comments)
         
-        # Assertions - just verify we get a valid summary
+        # Assertions that should work regardless of NLTK availability
         self.assertIsInstance(summary, str)
         self.assertIn('3 comments', summary)
         self.assertGreater(len(summary), 20)
@@ -280,6 +280,19 @@ class TestCommentSummarization(unittest.TestCase):
             # File should not be created for empty comments
             expected_file = os.path.join(temp_dir, "comments_episode_001.txt")
             self.assertFalse(os.path.exists(expected_file))
+
+    def test_summarize_comments_fallback_to_simple(self):
+        """Test fallback to simple summary when NLTK fails."""
+        # Test the simple summary function directly instead of complex mocking
+        from scraper.comment_analyzer import _generate_simple_summary
+        
+        summary = _generate_simple_summary(self.sample_comments)  
+        
+        # Assertions - verify we get a valid summary 
+        self.assertIsInstance(summary, str)
+        self.assertIn('3 comments', summary)
+        self.assertGreater(len(summary), 20)
+        self.assertIn('average comment contains', summary)
 
 
 class TestCommentAnalyzerIntegration(unittest.TestCase):

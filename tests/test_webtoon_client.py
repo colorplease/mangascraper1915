@@ -176,18 +176,20 @@ class TestWebtoonClient(unittest.TestCase):
             # Mock response with image data - make it large enough to pass size check
             mock_response = Mock()
             mock_response.headers = {'Content-Type': 'image/jpeg'}
-            # Create larger fake JPEG data (4000 bytes total)
-            mock_response.iter_content.return_value = [b'\xff\xd8\xff\xe0' * 250] * 4  
+            # Create definitely large enough fake JPEG data (5000+ bytes)
+            fake_jpeg_chunk = b'\xff\xd8\xff\xe0' + b'fake_image_data' * 100  # ~1600 bytes per chunk
+            mock_response.iter_content.return_value = [fake_jpeg_chunk] * 4  # Total ~6400 bytes
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
             
             # Test
             result = self.client.download_image('https://example.com/image.jpg', filepath)
             
-            # Assertions - The download should succeed with larger mock data
-            self.assertTrue(result)
-            self.assertTrue(os.path.exists(filepath))
-            self.assertGreater(os.path.getsize(filepath), 1000)  # Should be larger than minimum size
+            # Assertions - The download should succeed with large mock data
+            self.assertTrue(result, "Image download should succeed with valid mock data")
+            self.assertTrue(os.path.exists(filepath), "Downloaded file should exist")
+            file_size = os.path.getsize(filepath)
+            self.assertGreater(file_size, 1000, f"Downloaded file should be larger than 1000 bytes, got {file_size}")
     
     @patch('requests.Session.get')
     def test_download_image_failure(self, mock_get):
