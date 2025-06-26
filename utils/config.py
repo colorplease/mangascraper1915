@@ -3,6 +3,7 @@ Configuration management for the webtoon scraper application.
 """
 
 import os
+import logging
 from pathlib import Path
 from typing import Dict, Any
 
@@ -71,6 +72,18 @@ class Config:
     COMMENT_SUMMARY_DEFAULT = True
     PREFER_SELENIUM_FOR_COMMENTS = True
     
+    # Logging configuration
+    LOGGING_CONFIG = {
+        'level': logging.INFO,
+        'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        'file_format': '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
+        'date_format': '%Y-%m-%d %H:%M:%S',
+        'max_file_size': 10 * 1024 * 1024,  # 10MB
+        'backup_count': 5,
+        'log_to_file': True,
+        'log_to_console': True
+    }
+    
     # File paths
     BASE_DIR = Path.cwd()
     DOWNLOADS_DIR = BASE_DIR / "webtoon_downloads"
@@ -83,6 +96,12 @@ class Config:
         """Get the downloads directory, creating it if necessary."""
         cls.DOWNLOADS_DIR.mkdir(exist_ok=True)
         return cls.DOWNLOADS_DIR
+    
+    @classmethod
+    def get_logs_dir(cls) -> Path:
+        """Get the logs directory, creating it if necessary."""
+        cls.LOGS_DIR.mkdir(exist_ok=True)
+        return cls.LOGS_DIR
     
     @classmethod
     def get_manga_folder(cls, title_no: str, series_name: str) -> Path:
@@ -100,11 +119,30 @@ class Config:
         return manga_folder / chapter_folder_name
     
     @classmethod
+    def setup_logging(cls) -> logging.Logger:
+        """Set up application-wide logging configuration."""
+        from utils.logger import setup_logging
+        return setup_logging(
+            name='manga_scraper',
+            level=cls.LOGGING_CONFIG['level'],
+            log_to_file=cls.LOGGING_CONFIG['log_to_file'],
+            log_to_console=cls.LOGGING_CONFIG['log_to_console'],
+            max_file_size=cls.LOGGING_CONFIG['max_file_size'],
+            backup_count=cls.LOGGING_CONFIG['backup_count']
+        )
+    
+    @classmethod
     def validate_config(cls) -> bool:
         """Validate configuration settings."""
         try:
-            # Ensure downloads directory can be created
+            # Ensure necessary directories can be created
             cls.get_downloads_dir()
+            cls.get_logs_dir()
+            
+            # Set up logging
+            logger = cls.setup_logging()
+            logger.info(f"Configuration validated successfully for {cls.APP_NAME} v{cls.VERSION}")
+            
             return True
         except Exception as e:
             print(f"Configuration validation failed: {e}")

@@ -12,11 +12,14 @@ from bs4 import BeautifulSoup
 from collections import Counter
 
 from models.chapter import Chapter
+from utils.logger import get_logger, log_exception, ParsingError
+
+logger = get_logger(__name__)
 
 
 def extract_comments(soup: BeautifulSoup, chapter_url: str) -> List[Dict[str, Any]]:
     """Extract comments from a chapter page using comprehensive parsing."""
-    print("Scraping comments...")
+    logger.info("Starting comment extraction")
     comments = []
     
     # Save the HTML for debugging
@@ -24,13 +27,13 @@ def extract_comments(soup: BeautifulSoup, chapter_url: str) -> List[Dict[str, An
         debug_file = os.path.join(os.getcwd(), "webtoon_page_debug.html")
         with open(debug_file, "w", encoding="utf-8") as f:
             f.write(str(soup))
-        print(f"Saved full HTML to {debug_file} for debugging")
+        logger.debug(f"Saved full HTML to {debug_file} for debugging")
     except Exception as e:
-        print(f"Could not save debug HTML: {e}")
+        logger.warning(f"Could not save debug HTML: {e}")
     
     # Look for UL elements containing comment items
     comment_uls = soup.find_all('ul', class_=lambda c: c and any(cls in c for cls in ['commentList', 'CommentList', 'comment-list', 'wcc_CommentList']))
-    print(f"Found {len(comment_uls)} possible comment list containers")
+    logger.debug(f"Found {len(comment_uls)} possible comment list containers")
     
     all_comment_items = []
     
@@ -38,20 +41,20 @@ def extract_comments(soup: BeautifulSoup, chapter_url: str) -> List[Dict[str, An
     for ul in comment_uls:
         items = ul.find_all('li', class_=lambda c: c and any(cls in c for cls in ['wcc_CommentItem__root', 'CommentItem', 'comment-item']))
         if items:
-            print(f"Found {len(items)} comment items in a UL container")
+            logger.debug(f"Found {len(items)} comment items in a UL container")
             all_comment_items.extend(items)
     
     # If no comments found in ULs, search the entire page
     if not all_comment_items:
         # Try more lenient class name matching for comment items
         all_comment_items = soup.find_all('li', class_=lambda c: c and any(cls in c for cls in ['wcc_CommentItem', 'CommentItem', 'comment-item']))
-        print(f"Found {len(all_comment_items)} comment items using lenient class matching")
+        logger.debug(f"Found {len(all_comment_items)} comment items using lenient class matching")
     
     # Still nothing? Try looking for the most specific class names
     if not all_comment_items:
         # Look for divs with wcc_CommentItem__inside class - these are inside the li elements
         inside_divs = soup.find_all('div', class_='wcc_CommentItem__inside')
-        print(f"Found {len(inside_divs)} divs with wcc_CommentItem__inside class")
+        logger.debug(f"Found {len(inside_divs)} divs with wcc_CommentItem__inside class")
         
         # For each inside div, try to find its parent li
         for div in inside_divs:
@@ -64,7 +67,7 @@ def extract_comments(soup: BeautifulSoup, chapter_url: str) -> List[Dict[str, An
     
     # Last resort: look for any element with CommentBody and TextContent elements inside
     if not all_comment_items:
-        print("Trying last resort comment finding method...")
+        logger.debug("Trying last resort comment finding method...")
         content_els = soup.find_all('p', class_='wcc_TextContent__content')
         for content in content_els:
             # Try to find the comment container by going up the DOM
@@ -80,11 +83,11 @@ def extract_comments(soup: BeautifulSoup, chapter_url: str) -> List[Dict[str, An
                     all_comment_items.append(parent)
                     break
     
-    print(f"Total potential comment items found: {len(all_comment_items)}")
+    logger.info(f"Total potential comment items found: {len(all_comment_items)}")
     
     # Debug: print all class names found for the first few elements
     for i, item in enumerate(all_comment_items[:3]):
-        print(f"Comment item {i+1} tag: {item.name}, classes: {item.get('class', [])}")
+        logger.debug(f"Comment item {i+1} tag: {item.name}, classes: {item.get('class', [])}")
     
     # Process the comment items
     for item in all_comment_items:
@@ -182,14 +185,14 @@ def extract_comments(soup: BeautifulSoup, chapter_url: str) -> List[Dict[str, An
                     'likes': likes
                 })
                 
-                # Print the extracted comment
-                if len(comments) <= 5:  # Print first 5 for debugging
-                    print(f"Extracted comment from {username}: \"{comment_text}\" | Date: {date} | Likes: {likes}")
+                # Log the extracted comment
+                if len(comments) <= 5:  # Log first 5 for debugging
+                    logger.debug(f"Extracted comment from {username}: \"{comment_text}\" | Date: {date} | Likes: {likes}")
         except Exception as e:
-            print(f"Error extracting a comment: {e}")
+            logger.warning(f"Error extracting a comment: {e}")
             continue
     
-    print(f"Successfully scraped {len(comments)} comments")
+    logger.info(f"Successfully extracted {len(comments)} comments")
     return comments
 
 
@@ -199,7 +202,7 @@ def summarize_comments(comments: List[Dict[str, Any]]) -> str:
         return "No comments available for this episode."
     
     try:
-        print("Generating comment summary...")
+        logger.debug("Generating comment summary...")
         # Try to use NLTK if available, but fall back to simple analysis
         try:
             import nltk
@@ -211,32 +214,32 @@ def summarize_comments(comments: List[Dict[str, Any]]) -> str:
             nltk_packages = ['punkt', 'stopwords', 'vader_lexicon']
             for package in nltk_packages:
                 try:
-                    print(f"Checking for NLTK package: {package}")
+                    logger.debug(f"Checking for NLTK package: {package}")
                     if package == 'punkt':
                         nltk.data.find(f'tokenizers/{package}')
                     elif package == 'stopwords':
                         nltk.data.find(f'corpora/{package}')
                     elif package == 'vader_lexicon':
                         nltk.data.find(f'sentiment/{package}')
-                    print(f"Package {package} already downloaded")
+                    logger.debug(f"Package {package} already downloaded")
                 except LookupError:
-                    print(f"Downloading NLTK package: {package}")
+                    logger.info(f"Downloading NLTK package: {package}")
                     nltk.download(package)
-                    print(f"Downloaded {package} successfully")
+                    logger.debug(f"Downloaded {package} successfully")
             
             # Test if we can use NLTK components
             _ = word_tokenize("Test sentence")
             _ = stopwords.words('english')
             _ = SentimentIntensityAnalyzer().polarity_scores("Test sentence")
-            print("NLTK components working correctly")
+            logger.debug("NLTK components working correctly")
             
             return _generate_nltk_summary(comments)
         except Exception as e:
-            print(f"NLTK not available or has issues: {e}")
-            print("Using simplified comment analysis")
+            logger.info(f"NLTK not available or has issues: {e}")
+            logger.debug("Using simplified comment analysis")
             return _generate_simple_summary(comments)
     except Exception as e:
-        print(f"Error generating comment summary: {str(e)}")
+        log_exception(logger, e, "Error generating comment summary")
         return _generate_simple_summary(comments)
 
 
@@ -247,19 +250,19 @@ def _generate_nltk_summary(comments: List[Dict[str, Any]]) -> str:
     from nltk.sentiment import SentimentIntensityAnalyzer
     
     # Get English stopwords
-    print("Processing stopwords...")
+    logger.debug("Processing stopwords...")
     stop_words = set(stopwords.words('english'))
     
     # Extract text from all comments
-    print(f"Analyzing {len(comments)} comments...")
+    logger.debug(f"Analyzing {len(comments)} comments...")
     all_text = " ".join([comment['text'] for comment in comments])
     
     # Tokenize and filter out stopwords
-    print("Tokenizing text...")
+    logger.debug("Tokenizing text...")
     words = [word.lower() for word in word_tokenize(all_text) if word.isalnum() and word.lower() not in stop_words]
     
     # Get most common words (top 10)
-    print("Finding most common words...")
+    logger.debug("Finding most common words...")
     if not words:
         common_words = ["No common words found"]
     else:
@@ -267,11 +270,11 @@ def _generate_nltk_summary(comments: List[Dict[str, Any]]) -> str:
         common_words = [word for word, _ in most_common] if most_common else ["No common words found"]
     
     # Calculate average comment length
-    print("Calculating average comment length...")
+    logger.debug("Calculating average comment length...")
     avg_length = sum(len(comment['text'].split()) for comment in comments) / len(comments)
     
     # Analyze sentiment
-    print("Analyzing sentiment...")
+    logger.debug("Analyzing sentiment...")
     sia = SentimentIntensityAnalyzer()
     sentiments = [sia.polarity_scores(comment['text'])['compound'] for comment in comments]
     avg_sentiment = sum(sentiments) / len(sentiments)
@@ -285,32 +288,32 @@ def _generate_nltk_summary(comments: List[Dict[str, Any]]) -> str:
         sentiment_category = "neutral"
     
     # Find the most upvoted comment
-    print("Finding most upvoted comment...")
+    logger.debug("Finding most upvoted comment...")
     try:
         most_upvoted = max(comments, key=lambda x: int(x['likes'].replace(',', '')) if x['likes'].replace(',', '').isdigit() else 0)
         top_comment = most_upvoted['text']
         top_likes = most_upvoted['likes']
     except Exception as e:
-        print(f"Error finding most upvoted comment: {e}")
+        logger.warning(f"Error finding most upvoted comment: {e}")
         top_comment = "No notable comments found"
         top_likes = "0"
     
     # Generate summary
-    print("Generating final summary...")
+    logger.debug("Generating final summary...")
     summary = f"A total of {len(comments)} comments were analyzed for this episode. "
     summary += f"The overall sentiment is {sentiment_category} (score: {avg_sentiment:.2f}). "
     summary += f"The most discussed topics include: {', '.join(common_words[:5])}. "
     summary += f"The average comment contains {avg_length:.1f} words. "
     summary += f"Most upvoted comment ({top_likes} likes): \"{top_comment[:50]}{'...' if len(top_comment) > 50 else ''}\""
     
-    print("Summary generation complete!")
+    logger.debug("Summary generation complete!")
     return summary
 
 
 def _generate_simple_summary(comments: List[Dict[str, Any]]) -> str:
     """Generate a simplified summary without NLTK dependencies."""
     try:
-        print("Generating simplified summary...")
+        logger.debug("Generating simplified summary...")
         # Find comment lengths
         comment_lengths = [len(comment['text'].split()) for comment in comments]
         avg_length = sum(comment_lengths) / len(comment_lengths)
@@ -349,7 +352,7 @@ def _generate_simple_summary(comments: List[Dict[str, Any]]) -> str:
         
         return summary
     except Exception as e:
-        print(f"Error generating simplified summary: {str(e)}")
+        log_exception(logger, e, "Error generating simplified summary")
         return f"Summary generation failed. Raw data includes {len(comments)} comments. Error: {str(e)}"
 
 
@@ -378,7 +381,7 @@ def save_comments_to_file(comments: List[Dict[str, Any]], folder: str, episode_n
             f.write(f"{comment['text']}\n")
             f.write("-" * 50 + "\n\n")
     
-    print(f"Saved {len(comments)} comments with summary to {comment_file}")
+    logger.info(f"Saved {len(comments)} comments with summary to {comment_file}")
 
 
 class CommentAnalyzer:
@@ -402,12 +405,12 @@ class CommentAnalyzer:
                 nltk.data.find('sentiment/vader_lexicon')
                 return True
             except LookupError:
-                print("NLTK data not found. Downloading required packages...")
+                logger.info("NLTK data not found. Downloading required packages...")
                 self._download_nltk_data()
                 return True
                 
         except ImportError:
-            print("NLTK not installed. Comment analysis will use simplified methods.")
+            logger.info("NLTK not installed. Comment analysis will use simplified methods.")
             return False
     
     def _download_nltk_data(self) -> None:
@@ -418,11 +421,11 @@ class CommentAnalyzer:
             nltk.download('stopwords', quiet=True)
             nltk.download('vader_lexicon', quiet=True)
         except Exception as e:
-            print(f"Error downloading NLTK data: {e}")
+            log_exception(logger, e, "Error downloading NLTK data")
     
     def extract_comments_from_soup(self, soup: BeautifulSoup, chapter_url: str) -> List[Dict[str, Any]]:
         """Extract comments from a chapter page's BeautifulSoup object."""
-        print("Extracting comments from chapter page...")
+        logger.debug("Extracting comments from chapter page...")
         comments = []
         
         # Save debug HTML
@@ -430,7 +433,7 @@ class CommentAnalyzer:
         
         # Find comment containers
         comment_items = self._find_comment_elements(soup)
-        print(f"Found {len(comment_items)} potential comment items")
+        logger.debug(f"Found {len(comment_items)} potential comment items")
         
         # Process each comment item
         for item in comment_items:
@@ -439,10 +442,10 @@ class CommentAnalyzer:
                 if comment_data and comment_data['text']:
                     comments.append(comment_data)
             except Exception as e:
-                print(f"Error extracting comment: {e}")
+                logger.warning(f"Error extracting comment: {e}")
                 continue
         
-        print(f"Successfully extracted {len(comments)} comments")
+        logger.info(f"Successfully extracted {len(comments)} comments")
         return comments
     
     def _save_debug_html(self, soup: BeautifulSoup) -> None:
@@ -451,9 +454,9 @@ class CommentAnalyzer:
             debug_file = "webtoon_page_debug.html"
             with open(debug_file, "w", encoding="utf-8") as f:
                 f.write(str(soup))
-            print(f"Saved debug HTML to {debug_file}")
+            logger.debug(f"Saved debug HTML to {debug_file}")
         except Exception as e:
-            print(f"Could not save debug HTML: {e}")
+            logger.warning(f"Could not save debug HTML: {e}")
     
     def _find_comment_elements(self, soup: BeautifulSoup) -> List:
         """Find comment elements in the soup."""
@@ -668,7 +671,7 @@ class CommentAnalyzer:
             return summary
             
         except Exception as e:
-            print(f"Error in NLTK analysis: {e}")
+            log_exception(logger, e, "Error in NLTK analysis")
             return self._analyze_simple(comments)
     
     def _analyze_simple(self, comments: List[Dict[str, Any]]) -> str:
@@ -709,7 +712,7 @@ class CommentAnalyzer:
             return summary
             
         except Exception as e:
-            print(f"Error in simple analysis: {e}")
+            log_exception(logger, e, "Error in simple analysis")
             return f"Summary generation failed. Raw data includes {len(comments)} comments."
     
     def save_comments_to_file(self, comments: List[Dict[str, Any]], 
@@ -740,7 +743,7 @@ class CommentAnalyzer:
                 f.write(f"{comment['text']}\n")
                 f.write("-" * 50 + "\n\n")
         
-        print(f"Saved {len(comments)} comments with analysis to {comment_file}")
+        logger.info(f"Saved {len(comments)} comments with analysis to {comment_file}")
         
         # Update chapter with comment data
         chapter.add_comments(comments, summary) 

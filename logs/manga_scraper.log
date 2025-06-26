@@ -62,3 +62,98 @@
 2025-06-25 11:53:45 - scraper.downloader.ImageDownloader - INFO - Downloaded 100/100 images for Episode 45
 2025-06-25 11:53:45 - scraper.downloader.ImageDownloader - INFO - Cleared download queue
 2025-06-25 11:53:45 - scraper.downloader.ImageDownloader - INFO - All 1 chapters downloaded successfully!
+2025-06-26 11:59:27 - manga_scraper - INFO - config.py:144 - Configuration validated successfully for Webtoon Scraper v2.0.0
+2025-06-26 11:59:27 - __main__ - INFO - error_handling_improvements.py:132 - Starting error handling demonstration
+2025-06-26 11:59:27 - __main__ - INFO - error_handling_improvements.py:39 - === NEW ERROR HANDLING (AFTER) ===
+2025-06-26 11:59:27 - __main__ - ERROR - logger.py:178 - Network request failed: ConnectionError: HTTPSConnectionPool(host='nonexistent-website-12345.com', port=443): Max retries exceeded with url: / (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B1999A1250>: Failed to resolve 'nonexistent-website-12345.com' ([Errno 11001] getaddrinfo failed)"))
+Traceback (most recent call last):
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\connection.py", line 198, in _new_conn
+    sock = connection.create_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\util\connection.py", line 60, in create_connection
+    for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\socket.py", line 962, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 11001] getaddrinfo failed
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+               ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\connectionpool.py", line 488, in _make_request
+    raise new_e
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\connection.py", line 704, in connect
+    self.sock = sock = self._new_conn()
+                       ^^^^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\connection.py", line 205, in _new_conn
+    raise NameResolutionError(self.host, self, e) from e
+urllib3.exceptions.NameResolutionError: <urllib3.connection.HTTPSConnection object at 0x000002B1999A1250>: Failed to resolve 'nonexistent-website-12345.com' ([Errno 11001] getaddrinfo failed)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\requests\adapters.py", line 486, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\urllib3\util\retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='nonexistent-website-12345.com', port=443): Max retries exceeded with url: / (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B1999A1250>: Failed to resolve 'nonexistent-website-12345.com' ([Errno 11001] getaddrinfo failed)"))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\error_handling_improvements.py", line 44, in demonstrate_new_error_handling
+    response = requests.get("https://nonexistent-website-12345.com", timeout=5)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\requests\api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pikmi\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\requests\adapters.py", line 519, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPSConnectionPool(host='nonexistent-website-12345.com', port=443): Max retries exceeded with url: / (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B1999A1250>: Failed to resolve 'nonexistent-website-12345.com' ([Errno 11001] getaddrinfo failed)"))
+2025-06-26 11:59:27 - __main__ - INFO - error_handling_improvements.py:142 - Caught custom exception: Failed to fetch URL: HTTPSConnectionPool(host='nonexistent-website-12345.com', port=443): Max retries exceeded with url: / (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B1999A1250>: Failed to resolve 'nonexistent-website-12345.com' ([Errno 11001] getaddrinfo failed)"))
+2025-06-26 11:59:27 - __main__ - INFO - error_handling_improvements.py:60 - === DECORATOR ERROR HANDLING ===
+2025-06-26 11:59:27 - __main__ - ERROR - logger.py:178 - Error in decorated function: ZeroDivisionError: division by zero
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\utils\logger.py", line 195, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Documents\mangascraper1915\error_handling_improvements.py", line 63, in demonstrate_decorator_error_handling
+    result = 1 / 0
+             ~~^~~
+ZeroDivisionError: division by zero
+2025-06-26 11:59:27 - __main__ - INFO - error_handling_improvements.py:148 - Decorator result: None
+2025-06-26 11:59:27 - __main__ - INFO - error_handling_improvements.py:69 - === ERROR RECOVERY STRATEGIES ===
+2025-06-26 11:59:27 - __main__ - WARNING - error_handling_improvements.py:86 - Attempt 1 failed: Simulated network error. Retrying in 1s...
+2025-06-26 11:59:28 - __main__ - WARNING - error_handling_improvements.py:86 - Attempt 2 failed: Simulated network error. Retrying in 2s...
+2025-06-26 11:59:30 - __main__ - INFO - error_handling_improvements.py:80 - Operation succeeded on retry
+2025-06-26 11:59:30 - __main__ - INFO - error_handling_improvements.py:153 - Recovery strategy result: True
+2025-06-26 11:59:30 - __main__ - INFO - error_handling_improvements.py:97 - === CONTEXTUAL ERROR LOGGING ===
+2025-06-26 11:59:30 - __main__ - ERROR - error_handling_improvements.py:111 - Chapter processing failed - Manga: Test Manga, Chapter: 001, Error: Invalid chapter data format
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\error_handling_improvements.py", line 107, in demonstrate_context_logging
+    raise ValueError("Invalid chapter data format")
+ValueError: Invalid chapter data format
+2025-06-26 11:59:30 - __main__ - INFO - error_handling_improvements.py:118 - Skipping chapter 001 and continuing...
+2025-06-26 11:59:30 - __main__ - INFO - error_handling_improvements.py:160 - Error handling demonstration completed successfully

@@ -11,69 +11,75 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional, Callable
 from pathlib import Path
+import threading
 
 from models.manga import Manga
 from models.chapter import Chapter
 from scraper.webtoon_client import WebtoonClient
 from scraper.parsers import parse_chapter_images, extract_chapter_info
-from scraper.comment_analyzer import extract_comments, save_comments_to_file
+from scraper.comment_analyzer import extract_comments, save_comments_to_file, CommentAnalyzer
 from utils.config import Config
+from utils.logger import get_logger, log_exception, with_error_handling
+
+logger = get_logger(__name__)
 
 
-class DownloadProgress:
-    """Progress tracking for downloads."""
+class ProgressTracker:
+    """Thread-safe progress tracking for downloads."""
     
-    def __init__(self, total_items: int):
-        self.total_items = total_items
-        self.completed_items = 0
-        self.failed_items = 0
-        self.start_time = time.time()
-        self.callbacks: List[Callable] = []
+    def __init__(self):
+        self._lock = threading.Lock()
+        self.total_images = 0
+        self.downloaded_images = 0
+        self.failed_images = 0
+        self.current_chapter = ""
+        self.callback: Optional[Callable] = None
     
-    def add_callback(self, callback: Callable) -> None:
-        """Add a progress callback function."""
-        self.callbacks.append(callback)
+    def set_callback(self, callback: Callable):
+        """Set progress callback function."""
+        self.callback = callback
     
-    def update(self, completed: int = None, failed: int = None) -> None:
-        """Update progress counters."""
-        if completed is not None:
-            self.completed_items = completed
-        if failed is not None:
-            self.failed_items = failed
-        
-        # Call all callbacks
-        for callback in self.callbacks:
+    def reset(self, total_images: int, chapter_name: str):
+        """Reset progress for new download."""
+        with self._lock:
+            self.total_images = total_images
+            self.downloaded_images = 0
+            self.failed_images = 0
+            self.current_chapter = chapter_name
+            self._notify_progress()
+    
+    def update_progress(self, success: bool = True):
+        """Update download progress."""
+        with self._lock:
+            if success:
+                self.downloaded_images += 1
+            else:
+                self.failed_images += 1
+            self._notify_progress()
+    
+    def _notify_progress(self):
+        """Notify callback of progress update."""
+        if self.callback:
             try:
-                callback(self)
+                self.callback(
+                    self.downloaded_images,
+                    self.total_images,
+                    self.failed_images,
+                    self.current_chapter
+                )
             except Exception as e:
-                print(f"Error in progress callback: {e}")
+                log_exception(logger, e, "Error in progress callback")
     
-    def increment_completed(self) -> None:
-        """Increment completed count."""
-        self.completed_items += 1
-        self.update()
-    
-    def increment_failed(self) -> None:
-        """Increment failed count."""
-        self.failed_items += 1
-        self.update()
-    
-    @property
-    def percentage(self) -> float:
-        """Get completion percentage."""
-        if self.total_items == 0:
-            return 100.0
-        return (self.completed_items / self.total_items) * 100
-    
-    @property
-    def is_complete(self) -> bool:
-        """Check if download is complete."""
-        return (self.completed_items + self.failed_items) >= self.total_items
-    
-    @property
-    def elapsed_time(self) -> float:
-        """Get elapsed time in seconds."""
-        return time.time() - self.start_time
+    def get_progress(self) -> Dict[str, Any]:
+        """Get current progress."""
+        with self._lock:
+            return {
+                'downloaded': self.downloaded_images,
+                'total': self.total_images,
+                'failed': self.failed_images,
+                'chapter': self.current_chapter,
+                'percentage': (self.downloaded_images / self.total_images * 100) if self.total_images > 0 else 0
+            }
 
 
 class ImageDownloader:
@@ -101,7 +107,7 @@ class ImageDownloader:
             return False
     
     def download_chapter_images(self, chapter: Chapter, output_dir: str, 
-                              progress: DownloadProgress = None,
+                              progress: ProgressTracker = None,
                               max_workers: int = None) -> int:
         """Download all images for a chapter."""
         if max_workers is None:
@@ -185,7 +191,7 @@ class ImageDownloader:
                     successful_downloads += 1
                 
                 if progress:
-                    progress.increment_completed()
+                    progress.update_progress()
         
         # Update chapter with download info
         if successful_downloads > 0:
@@ -283,9 +289,9 @@ class DownloadManager:
         queue.save_queue(chapters)
         
         # Set up progress tracking
-        progress = DownloadProgress(len(chapters))
+        progress = ProgressTracker()
         if progress_callback:
-            progress.add_callback(progress_callback)
+            progress.set_callback(progress_callback)
         
         results = {}
         
@@ -298,7 +304,7 @@ class DownloadManager:
                     self.image_downloader.download_chapter_images,
                     chapter,
                     output_dir,
-                    None,  # Individual chapter progress not tracked here
+                    progress,
                     self.max_workers
                 )
                 future_to_chapter[future] = chapter
@@ -311,14 +317,14 @@ class DownloadManager:
                     results[chapter.url] = image_count
                     
                     if image_count > 0:
-                        progress.increment_completed()
+                        progress.update_progress()
                     else:
-                        progress.increment_failed()
+                        progress.update_progress(False)
                         
                 except Exception as e:
                     print(f"Error downloading chapter {chapter.episode_no}: {e}")
                     results[chapter.url] = 0
-                    progress.increment_failed()
+                    progress.update_progress(False)
         
         # Check if all downloads were successful
         all_successful = all(count > 0 for count in results.values())
