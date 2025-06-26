@@ -157,3 +157,116 @@ Traceback (most recent call last):
 ValueError: Invalid chapter data format
 2025-06-26 11:59:30 - __main__ - INFO - error_handling_improvements.py:118 - Skipping chapter 001 and continuing...
 2025-06-26 11:59:30 - __main__ - INFO - error_handling_improvements.py:160 - Error handling demonstration completed successfully
+2025-06-26 12:04:53 - quick_test - INFO - run_error_handling_tests.py:145 - Testing logging system...
+2025-06-26 12:04:53 - quick_test - ERROR - logger.py:178 - Test operation: ValueError: Test error
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\utils\logger.py", line 195, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Documents\mangascraper1915\run_error_handling_tests.py", line 160, in test_decorated_function
+    raise ValueError("Test error")
+ValueError: Test error
+2025-06-26 12:05:03 - manga_scraper - INFO - config.py:144 - Configuration validated successfully for Webtoon Scraper v2.0.0
+2025-06-26 12:05:03 - error_handling_tests - INFO - run_error_handling_tests.py:45 - Test environment setup completed
+2025-06-26 12:05:04 - scraper.comment_analyzer - INFO - comment_analyzer.py:408 - NLTK data not found. Downloading required packages...
+2025-06-26 12:05:05 - test_integration - WARNING - test_error_handling.py:440 - Advanced operation failed: Advanced feature not available. Falling back to simple method
+2025-06-26 12:05:05 - test_recovery_integration - WARNING - test_error_scenarios.py:313 - Attempt 1 failed: Network failure
+2025-06-26 12:05:05 - test_recovery_integration - WARNING - test_error_scenarios.py:313 - Attempt 2 failed: Database failure
+2025-06-26 12:05:05 - test_recovery_integration - WARNING - test_error_scenarios.py:336 - Advanced feature failed, trying intermediate
+2025-06-26 12:05:05 - test_recovery_integration - WARNING - test_error_scenarios.py:340 - Intermediate feature failed, using basic
+2025-06-26 12:05:51 - manga_scraper - INFO - config.py:144 - Configuration validated successfully for Webtoon Scraper v2.0.0
+2025-06-26 12:05:51 - error_handling_tests - INFO - run_error_handling_tests.py:45 - Test environment setup completed
+2025-06-26 12:05:52 - scraper.comment_analyzer - INFO - comment_analyzer.py:408 - NLTK data not found. Downloading required packages...
+2025-06-26 12:05:52 - test_integration - WARNING - test_error_handling.py:446 - Advanced operation failed: Advanced feature not available. Falling back to simple method
+2025-06-26 12:05:53 - test_recovery_integration - WARNING - test_error_scenarios.py:326 - Attempt 1 failed: Network failure
+2025-06-26 12:05:53 - test_recovery_integration - WARNING - test_error_scenarios.py:326 - Attempt 2 failed: Database failure
+2025-06-26 12:05:53 - test_recovery_integration - WARNING - test_error_scenarios.py:349 - Advanced feature failed, trying intermediate
+2025-06-26 12:05:53 - test_recovery_integration - WARNING - test_error_scenarios.py:353 - Intermediate feature failed, using basic
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:132 - 🚀 Starting error handling demonstration...
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:111 - 🎯 Demonstrating custom exception handling...
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Handling NetworkError: NetworkError: API rate limit exceeded
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 122, in demonstrate_custom_exceptions
+    raise exc
+utils.logger.NetworkError: API rate limit exceeded
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Handling DatabaseError: DatabaseError: Connection string invalid
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 122, in demonstrate_custom_exceptions
+    raise exc
+utils.logger.DatabaseError: Connection string invalid
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Handling ParsingError: ParsingError: HTML structure changed - expected element not found
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 122, in demonstrate_custom_exceptions
+    raise exc
+utils.logger.ParsingError: HTML structure changed - expected element not found
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Handling ValidationError: ValidationError: Chapter number must be positive integer
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 122, in demonstrate_custom_exceptions
+    raise exc
+utils.logger.ValidationError: Chapter number must be positive integer
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:60 - 🔄 Demonstrating retry logic with exponential backoff...
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:67 - Attempt 1/4
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Network operation simulation: NetworkError: Connection timeout after 12 seconds
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\utils\logger.py", line 195, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 36, in simulate_network_operation
+    raise NetworkError(f"Connection timeout after {random.randint(5, 15)} seconds")
+utils.logger.NetworkError: Connection timeout after 12 seconds
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:67 - Attempt 2/4
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:38 - ✅ Network operation completed successfully
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:70 - 🎉 Operation succeeded!
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:141 - Retry demo result: {'status': 'success', 'data': 'sample_data'}
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:85 - 🔧 Demonstrating graceful degradation...
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:89 - Attempting advanced analysis...
+2025-06-26 12:06:45 - __main__ - WARNING - demo_error_handling.py:94 - Advanced analysis failed: Advanced ML model not available
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:98 - Falling back to intermediate analysis...
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:146 - Graceful degradation result: intermediate_analysis_result
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:150 - 🎭 Demonstrating decorator-based error handling...
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:154 - Operation 1:
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Network operation simulation: NetworkError: Connection timeout after 8 seconds
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\utils\logger.py", line 195, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 36, in simulate_network_operation
+    raise NetworkError(f"Connection timeout after {random.randint(5, 15)} seconds")
+utils.logger.NetworkError: Connection timeout after 8 seconds
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Database operation simulation: DatabaseError: Disk full - cannot write to database
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\utils\logger.py", line 195, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 53, in simulate_database_operation
+    raise scenario
+utils.logger.DatabaseError: Disk full - cannot write to database
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:154 - Operation 2:
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:38 - ✅ Network operation completed successfully
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Database operation simulation: DatabaseError: Table 'manga_chapters' doesn't exist
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\utils\logger.py", line 195, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 53, in simulate_database_operation
+    raise scenario
+utils.logger.DatabaseError: Table 'manga_chapters' doesn't exist
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:159 -   Network: {'status': 'success', 'data': 'sample_data'}
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:154 - Operation 3:
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Network operation simulation: NetworkError: Connection timeout after 15 seconds
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\utils\logger.py", line 195, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 36, in simulate_network_operation
+    raise NetworkError(f"Connection timeout after {random.randint(5, 15)} seconds")
+utils.logger.NetworkError: Connection timeout after 15 seconds
+2025-06-26 12:06:45 - __main__ - ERROR - logger.py:178 - Database operation simulation: DatabaseError: Connection pool exhausted
+Traceback (most recent call last):
+  File "F:\Documents\mangascraper1915\utils\logger.py", line 195, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "F:\Documents\mangascraper1915\demo_error_handling.py", line 53, in simulate_database_operation
+    raise scenario
+utils.logger.DatabaseError: Connection pool exhausted
+2025-06-26 12:06:45 - __main__ - INFO - demo_error_handling.py:164 - ✨ Demonstration completed!
