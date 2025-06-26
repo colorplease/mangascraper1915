@@ -1,0 +1,64 @@
+2025-06-25 11:37:28 - __main__ - INFO - Testing logging system
+2025-06-25 11:38:22 - utils.config.Config - INFO - Initializing configuration with file: config.json
+2025-06-25 11:38:22 - utils.db_manager.DatabaseManager - INFO - Initializing DatabaseManager with database: C:\Users\pikmi\Downloads\mangascraper\manga_collection.db
+2025-06-25 11:38:22 - utils.db_manager.DatabaseManager - INFO - Database initialized successfully
+2025-06-25 11:38:22 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:38:22 - scraper.downloader.ImageDownloader - INFO - ImageDownloader initialized
+2025-06-25 11:38:22 - scraper.comment_analyzer.CommentAnalyzer - INFO - Downloading NLTK package: vader_lexicon
+2025-06-25 11:38:25 - scraper.comment_analyzer.CommentAnalyzer - INFO - CommentAnalyzer initialized
+2025-06-25 11:39:16 - utils.config.Config - INFO - Initializing configuration with file: config.json
+2025-06-25 11:39:16 - utils.db_manager.DatabaseManager - INFO - Initializing DatabaseManager with database: C:\Users\pikmi\Downloads\mangascraper\manga_collection.db
+2025-06-25 11:39:16 - utils.db_manager.DatabaseManager - INFO - Database initialized successfully
+2025-06-25 11:39:16 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:39:16 - scraper.downloader.ImageDownloader - INFO - ImageDownloader initialized
+2025-06-25 11:39:16 - scraper.comment_analyzer.CommentAnalyzer - INFO - Downloading NLTK package: vader_lexicon
+2025-06-25 11:39:17 - scraper.comment_analyzer.CommentAnalyzer - INFO - CommentAnalyzer initialized
+2025-06-25 11:41:32 - scraper.downloader.ImageDownloader - INFO - Saved download queue with 1 chapters
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:41:34 - scraper.downloader.ImageDownloader - INFO - Downloaded 100/100 images for Episode 45
+2025-06-25 11:41:34 - scraper.downloader.ImageDownloader - INFO - Cleared download queue
+2025-06-25 11:41:34 - scraper.downloader.ImageDownloader - INFO - All 1 chapters downloaded successfully!
+2025-06-25 11:43:48 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:44:06 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:44:30 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:44:30 - scraper.parsers.WebtoonParser - INFO - Fetching chapter links from: https://www.webtoons.com/en/romance/lore-olympus/list?title_no=1320
+2025-06-25 11:45:02 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:45:37 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:45:52 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:53:06 - utils.config.Config - INFO - Initializing configuration with file: config.json
+2025-06-25 11:53:06 - utils.db_manager.DatabaseManager - INFO - Initializing DatabaseManager with database: C:\Users\pikmi\Downloads\mangascraper\manga_collection.db
+2025-06-25 11:53:06 - utils.db_manager.DatabaseManager - INFO - Database initialized successfully
+2025-06-25 11:53:06 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:53:06 - scraper.downloader.ImageDownloader - INFO - ImageDownloader initialized
+2025-06-25 11:53:06 - scraper.comment_analyzer.CommentAnalyzer - INFO - Downloading NLTK package: vader_lexicon
+2025-06-25 11:53:06 - scraper.comment_analyzer.CommentAnalyzer - INFO - CommentAnalyzer initialized
+2025-06-25 11:53:33 - utils.config.Config - INFO - Initializing configuration with file: config.json
+2025-06-25 11:53:33 - utils.db_manager.DatabaseManager - INFO - Initializing DatabaseManager with database: C:\Users\pikmi\Downloads\mangascraper\manga_collection.db
+2025-06-25 11:53:33 - utils.db_manager.DatabaseManager - INFO - Database initialized successfully
+2025-06-25 11:53:33 - scraper.webtoon_client.WebtoonClient - INFO - WebtoonClient initialized
+2025-06-25 11:53:33 - scraper.downloader.ImageDownloader - INFO - ImageDownloader initialized
+2025-06-25 11:53:33 - scraper.comment_analyzer.CommentAnalyzer - INFO - Downloading NLTK package: vader_lexicon
+2025-06-25 11:53:33 - scraper.comment_analyzer.CommentAnalyzer - INFO - CommentAnalyzer initialized
+2025-06-25 11:53:43 - scraper.downloader.ImageDownloader - INFO - Saved download queue with 1 chapters
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - urllib3.connectionpool - WARNING - Connection pool is full, discarding connection: webtoon-phinf.pstatic.net. Connection pool size: 10
+2025-06-25 11:53:45 - scraper.downloader.ImageDownloader - INFO - Downloaded 100/100 images for Episode 45
+2025-06-25 11:53:45 - scraper.downloader.ImageDownloader - INFO - Cleared download queue
+2025-06-25 11:53:45 - scraper.downloader.ImageDownloader - INFO - All 1 chapters downloaded successfully!
