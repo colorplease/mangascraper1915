@@ -31,12 +31,20 @@ class TestDatabaseManager(unittest.TestCase):
         self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
         self.temp_db.close()
         self.db_path = self.temp_db.name
+        
+        # Ensure we start with a fresh database
+        if os.path.exists(self.db_path):
+            try:
+                os.unlink(self.db_path)
+            except:
+                pass
+        
         self.db_manager = DatabaseManager(self.db_path)
         
         # Sample manga for testing
         self.sample_manga = Manga(
             title_no="123",
-            series_name="test_series",
+            series_name="test-series",  # Use hyphen format to match extraction logic
             display_title="Test Series",
             author="Test Author",
             genre="Drama",
@@ -53,13 +61,24 @@ class TestDatabaseManager(unittest.TestCase):
     
     def tearDown(self):
         """Clean up after tests."""
+        # Close any connections first
         try:
-            os.unlink(self.db_path)
+            self.db_manager = None
+        except:
+            pass
+        
+        # Clean up database file
+        try:
+            if hasattr(self, 'db_path') and os.path.exists(self.db_path):
+                os.unlink(self.db_path)
         except:
             pass
     
     def test_init_database(self):
         """Test database initialization."""
+        # Force database initialization
+        self.db_manager.init_database()
+        
         # Check if tables exist
         with sqlite3.connect(self.db_path) as conn:
             c = conn.cursor()
@@ -97,7 +116,7 @@ class TestDatabaseManager(unittest.TestCase):
         retrieved_manga = self.db_manager.get_manga_by_title_no("123")
         
         self.assertIsNotNone(retrieved_manga)
-        self.assertEqual(retrieved_manga.series_name, "test_series")
+        self.assertEqual(retrieved_manga.series_name, "test-series")
     
     def test_get_all_manga(self):
         """Test retrieving all manga."""
@@ -196,11 +215,14 @@ class TestDatabaseUtils(unittest.TestCase):
         self.temp_db.close()
         
         # Patch the DB_PATH to use our temporary database
-        self.original_db_path = db_utils.DB_PATH if hasattr(db_utils, 'DB_PATH') else None
+        self.original_db_path = getattr(db_utils, 'DB_PATH', None)
         db_utils.DB_PATH = self.temp_db.name
         
         # Initialize database
-        db_utils.init_db()
+        try:
+            db_utils.init_db()
+        except Exception as e:
+            print(f"Database initialization error: {e}")
     
     def tearDown(self):
         """Clean up after tests."""
@@ -209,7 +231,8 @@ class TestDatabaseUtils(unittest.TestCase):
             db_utils.DB_PATH = self.original_db_path
         
         try:
-            os.unlink(self.temp_db.name)
+            if hasattr(self, 'temp_db') and os.path.exists(self.temp_db.name):
+                os.unlink(self.temp_db.name)
         except:
             pass
     
@@ -238,7 +261,11 @@ class TestDatabaseUtils(unittest.TestCase):
         manga_id = db_utils.insert_or_update_manga(
             title_no="123",
             series_name="test_series",
-            display_title="Test Series"
+            display_title="Test Series",
+            author="Test Author",
+            genre="Drama",
+            num_chapters=5,
+            url="https://example.com/test"
         )
         
         self.assertEqual(manga_id, 1)

@@ -19,6 +19,7 @@ from tests.test_webtoon_client import TestWebtoonClient, TestWebtoonClientIntegr
 from tests.test_comment_analyzer import TestCommentExtraction, TestCommentSummarization, TestCommentAnalyzerIntegration
 from tests.test_database import TestDatabaseManager, TestDatabaseUtils, TestDatabaseIntegration
 from tests.test_parsers import TestExtractChapterInfo, TestExtractWebtoonInfo, TestParseChapterLinks, TestParseMangaMetadata, TestParseChapterImages, TestCreateObjects
+from tests.test_fixes import TestCoreParserFunctionality, TestCoreCommentFunctionality, TestCoreWebClientFunctionality, TestCoreDatabaseFunctionality
 from tests.test_integration import (
     TestFullScrapingWorkflow, 
     TestCommentExtractionAndSummarization,
@@ -48,6 +49,14 @@ def run_test_suite(test_type='all'):
         suite.addTest(unittest.makeSuite(TestParseMangaMetadata))
         suite.addTest(unittest.makeSuite(TestParseChapterImages))
         suite.addTest(unittest.makeSuite(TestCreateObjects))
+    
+    if test_type == 'all' or test_type == 'core':
+        print("Adding core functionality tests...")
+        # Core reliable tests
+        suite.addTest(unittest.makeSuite(TestCoreParserFunctionality))
+        suite.addTest(unittest.makeSuite(TestCoreCommentFunctionality))
+        suite.addTest(unittest.makeSuite(TestCoreWebClientFunctionality))
+        suite.addTest(unittest.makeSuite(TestCoreDatabaseFunctionality))
     
     if test_type == 'all' or test_type == 'integration':
         print("Adding integration tests...")
@@ -141,7 +150,7 @@ if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description='Run manga scraper tests')
-    parser.add_argument('--type', choices=['all', 'unit', 'integration', 'functionality'], 
+    parser.add_argument('--type', choices=['all', 'unit', 'integration', 'functionality', 'core'], 
                        default='functionality',
                        help='Type of tests to run (default: functionality)')
     parser.add_argument('--verbose', '-v', action='store_true',
