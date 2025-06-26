@@ -39,6 +39,10 @@ class TestDatabaseManager(unittest.TestCase):
             except:
                 pass
         
+        # Patch db_utils.DB_PATH to use our temporary database
+        self.original_db_path = getattr(db_utils, 'DB_PATH', None)
+        db_utils.DB_PATH = self.db_path
+        
         self.db_manager = DatabaseManager(self.db_path)
         
         # Sample manga for testing
@@ -66,6 +70,10 @@ class TestDatabaseManager(unittest.TestCase):
             self.db_manager = None
         except:
             pass
+        
+        # Restore original DB_PATH
+        if hasattr(self, 'original_db_path') and self.original_db_path:
+            db_utils.DB_PATH = self.original_db_path
         
         # Clean up database file
         try:
@@ -116,7 +124,7 @@ class TestDatabaseManager(unittest.TestCase):
         retrieved_manga = self.db_manager.get_manga_by_title_no("123")
         
         self.assertIsNotNone(retrieved_manga)
-        self.assertEqual(retrieved_manga.series_name, "test-series")
+        self.assertEqual(retrieved_manga.series_name, "test-series")  # Expect hyphen format
     
     def test_get_all_manga(self):
         """Test retrieving all manga."""

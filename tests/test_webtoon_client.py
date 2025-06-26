@@ -173,22 +173,21 @@ class TestWebtoonClient(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             filepath = os.path.join(temp_dir, 'test_image.jpg')
             
-            # Mock response with image data
+            # Mock response with image data - make it large enough to pass size check
             mock_response = Mock()
             mock_response.headers = {'Content-Type': 'image/jpeg'}
-            mock_response.iter_content.return_value = [b'\xff\xd8\xff\xe0'] * 1000  # Larger fake JPEG data
+            # Create larger fake JPEG data (4000 bytes total)
+            mock_response.iter_content.return_value = [b'\xff\xd8\xff\xe0' * 250] * 4  
             mock_response.raise_for_status.return_value = None
             mock_get.return_value = mock_response
             
             # Test
             result = self.client.download_image('https://example.com/image.jpg', filepath)
             
-            # Assertions - More flexible assertions for CI environment
-            self.assertIsInstance(result, bool)
-            # Only check file exists if download was successful
-            if result:
-                self.assertTrue(os.path.exists(filepath))
-                self.assertGreater(os.path.getsize(filepath), 0)
+            # Assertions - The download should succeed with larger mock data
+            self.assertTrue(result)
+            self.assertTrue(os.path.exists(filepath))
+            self.assertGreater(os.path.getsize(filepath), 1000)  # Should be larger than minimum size
     
     @patch('requests.Session.get')
     def test_download_image_failure(self, mock_get):
