@@ -26,6 +26,12 @@ from tests.test_integration import (
     TestDatabaseQueryOperations,
     TestErrorHandlingAndEdgeCases
 )
+from tests.test_controllers import (
+    TestMangaController,
+    TestDownloadController, 
+    TestMVCIntegration,
+    TestMVCBusinessLogicSeparation
+)
 
 
 def run_test_suite(test_type='all'):
@@ -57,6 +63,11 @@ def run_test_suite(test_type='all'):
         suite.addTest(unittest.makeSuite(TestCoreCommentFunctionality))
         suite.addTest(unittest.makeSuite(TestCoreWebClientFunctionality))
         suite.addTest(unittest.makeSuite(TestCoreDatabaseFunctionality))
+        # MVC Controller tests
+        suite.addTest(unittest.makeSuite(TestMangaController))
+        suite.addTest(unittest.makeSuite(TestDownloadController))
+        suite.addTest(unittest.makeSuite(TestMVCIntegration))
+        suite.addTest(unittest.makeSuite(TestMVCBusinessLogicSeparation))
     
     if test_type == 'all' or test_type == 'integration':
         print("Adding integration tests...")
@@ -110,7 +121,8 @@ def run_functionality_tests():
         "Chapter Scraping": [TestWebtoonClient, TestFullScrapingWorkflow, TestExtractChapterInfo, TestExtractWebtoonInfo, TestParseChapterLinks, TestParseMangaMetadata, TestParseChapterImages, TestCreateObjects],
         "Comment Scraping": [TestCommentExtraction, TestCommentExtractionAndSummarization], 
         "Comment Summarization": [TestCommentSummarization, TestCommentAnalyzerIntegration],
-        "Database Operations": [TestDatabaseManager, TestDatabaseQueryOperations]
+        "Database Operations": [TestDatabaseManager, TestDatabaseQueryOperations],
+        "MVC Controllers": [TestMangaController, TestDownloadController, TestMVCIntegration, TestMVCBusinessLogicSeparation]
     }
     
     all_passed = True

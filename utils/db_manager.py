@@ -500,12 +500,82 @@ class DatabaseManager:
                 author="Unknown",
                 genre="Unknown",
                 num_chapters=episode_count,
-                url=url or "",
-                chapters=chapters
+                url=url or ""
             )
             
+            # Add chapters to manga
+            for chapter in chapters:
+                manga.add_chapter(chapter)
+            
             # Save to database
-            self.save_manga(manga)
-            count += 1
+            try:
+                manga_id = self.save_manga(manga)
+                count += 1
+                print(f"Added manga: {display_title} (ID: {manga_id}) with {episode_count} chapters")
+            except Exception as e:
+                print(f"Error saving manga {display_title}: {e}")
         
-        return count 
+        return count
+
+    # DEFENSIVE METHODS - These should normally be called on controllers,
+    # but we add them here to prevent AttributeError if called incorrectly
+    def load_downloaded_manga(self):
+        """Defensive method - should be called on MangaController instead."""
+        print("WARNING: load_downloaded_manga called on DatabaseManager instead of MangaController")
+        print("This suggests a UI initialization issue. Please check controller assignments.")
+        
+        # Try to return a reasonable response to prevent crash
+        try:
+            return self.get_all_manga()
+        except Exception as e:
+            print(f"Error in defensive load_downloaded_manga: {e}")
+            return []
+    
+    def resume_downloads(self):
+        """Defensive method - should be called on DownloadController instead."""
+        print("WARNING: resume_downloads called on DatabaseManager instead of DownloadController")
+        print("This suggests a UI initialization issue. Please check controller assignments.")
+        
+        # Cannot actually resume downloads without a DownloadController
+        # Just log the issue and return gracefully
+        return False
+    
+    def fetch_chapters(self, url: str):
+        """Defensive method - should be called on DownloadController instead."""
+        print("WARNING: fetch_chapters called on DatabaseManager instead of DownloadController")
+        print("This suggests a UI initialization issue. Please check controller assignments.")
+        print(f"Attempted URL: {url}")
+        
+        # Cannot actually fetch chapters without a DownloadController
+        # Just log the issue and return gracefully
+        return False
+    
+    def download_chapters(self, chapters):
+        """Defensive method - should be called on DownloadController instead."""
+        print("WARNING: download_chapters called on DatabaseManager instead of DownloadController")
+        print("This suggests a UI initialization issue. Please check controller assignments.")
+        return False
+    
+    def get_downloaded_chapters(self):
+        """Defensive method - should be called on DownloadController instead."""
+        print("WARNING: get_downloaded_chapters called on DatabaseManager instead of DownloadController")
+        print("This suggests a UI initialization issue. Please check controller assignments.")
+        return set()
+    
+    def select_manga(self, manga):
+        """Defensive method - should be called on MangaController instead."""
+        print("WARNING: select_manga called on DatabaseManager instead of MangaController")
+        print("This suggests a UI initialization issue. Please check controller assignments.")
+        return False
+    
+    def get_manga_by_folder_name(self, folder_name: str):
+        """Defensive method - should be called on MangaController instead."""
+        print("WARNING: get_manga_by_folder_name called on DatabaseManager instead of MangaController")
+        print("This suggests a UI initialization issue. Please check controller assignments.")
+        return None
+    
+    def refresh_manga_data(self):
+        """Defensive method - should be called on MangaController instead."""
+        print("WARNING: refresh_manga_data called on DatabaseManager instead of MangaController")
+        print("This suggests a UI initialization issue. Please check controller assignments.")
+        return False 

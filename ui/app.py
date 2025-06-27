@@ -12,6 +12,8 @@ from .download_panel import DownloadPanel
 from .database_panel import DatabasePanel
 from utils.config import Config
 from utils.db_manager import DatabaseManager
+from controllers.manga_controller import MangaController
+from controllers.download_controller import DownloadController
 
 
 class WebtoonScraperApp(tk.Tk):
@@ -28,6 +30,16 @@ class WebtoonScraperApp(tk.Tk):
         
         # Initialize managers
         self.db_manager = DatabaseManager()
+        
+        # Initialize controllers (MVC pattern)
+        self.manga_controller = MangaController(self.db_manager)
+        self.download_controller = DownloadController(self.db_manager)
+        
+        # Validate controller types before proceeding
+        if not hasattr(self.manga_controller, 'load_downloaded_manga'):
+            raise TypeError(f"manga_controller is wrong type: {type(self.manga_controller)}")
+        if not hasattr(self.download_controller, 'fetch_chapters'):
+            raise TypeError(f"download_controller is wrong type: {type(self.download_controller)}")
         
         # Initialize UI components
         self.setup_ui()
@@ -53,12 +65,12 @@ class WebtoonScraperApp(tk.Tk):
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         
-        # Create manga view panel
-        self.manga_view = MangaViewPanel(self.notebook, self.db_manager)
+        # Create manga view panel (pass controller)
+        self.manga_view = MangaViewPanel(self.notebook, self.manga_controller)
         self.notebook.add(self.manga_view, text="Downloaded Manga")
         
-        # Create download panel
-        self.download_panel = DownloadPanel(self.notebook, self.db_manager)
+        # Create download panel (pass controller)
+        self.download_panel = DownloadPanel(self.notebook, self.download_controller)
         self.notebook.add(self.download_panel, text="Download Manga")
         
         # Create database panel
@@ -74,12 +86,23 @@ class WebtoonScraperApp(tk.Tk):
 
     
     def setup_event_bindings(self) -> None:
-        """Set up event bindings between components."""
-        # Bind manga selection in manga view to update download panel
-        self.manga_view.on_manga_selected = self.download_panel.on_manga_selected
+        """Set up event bindings between components using controllers."""
+        # Create a wrapper function that calls both callbacks when manga is selected
+        def on_manga_selected_wrapper(manga):
+            """Wrapper to handle manga selection for both download controller and UI."""
+            # Update download controller context
+            if hasattr(self.download_controller, 'set_current_manga'):
+                self.download_controller.set_current_manga(manga)
+            
+            # Update manga view UI (this was being overwritten before!)
+            if hasattr(self.manga_view, 'on_manga_selected_internal'):
+                self.manga_view.on_manga_selected_internal(manga)
         
-        # Bind download completion to refresh manga view
-        self.download_panel.on_download_complete = self.manga_view.refresh_manga_list
+        # Set the wrapper as the callback
+        self.manga_controller.on_manga_selected = on_manga_selected_wrapper
+        
+        # When download completes, refresh manga data
+        self.download_controller.on_download_complete = lambda success, msg: self.manga_controller.refresh_manga_data()
     
     def on_tab_changed(self, event) -> None:
         """Handle tab change events."""
@@ -99,8 +122,8 @@ class WebtoonScraperApp(tk.Tk):
     def load_initial_data(self) -> None:
         """Load initial data for the application."""
         try:
-            # Load manga list in view panel
-            self.manga_view.refresh_manga_list()
+            # Load manga data using controller
+            self.manga_controller.load_downloaded_manga()
             
             # Show all manga in database panel
             self.database_panel.show_all_manga()
@@ -121,7 +144,11 @@ class WebtoonScraperApp(tk.Tk):
     def quit(self) -> None:
         """Quit the application."""
         try:
-            # Clean up resources
+            # Clean up controllers
+            if hasattr(self, 'download_controller'):
+                self.download_controller.cleanup()
+            
+            # Clean up UI components
             if hasattr(self, 'download_panel'):
                 self.download_panel.cleanup()
             

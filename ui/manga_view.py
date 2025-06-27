@@ -1,28 +1,22 @@
 """
-Manga viewing panel for displaying downloaded manga with banners, info, and chapters.
+Manga View Panel - UI component for viewing downloaded manga.
 
-This module implements the manga viewing functionality from the original GUI
-with banner image display, manga info, chapter lists, and comment viewing.
+This panel displays downloaded manga with banners, chapter lists, and metadata.
+It uses the MangaController for all business logic operations.
 """
 
-import tkinter as tk
-from tkinter import messagebox, filedialog
-import threading
 import os
-import json
-import re
-import time
-import subprocess
+import tkinter as tk
 import platform
-from typing import Optional, Callable, List, Dict, Any
+import subprocess
+from tkinter import messagebox, ttk
+from typing import List, Optional
 from PIL import Image, ImageTk
 import requests
-from io import BytesIO
 
 from models.manga import Manga
 from models.chapter import Chapter
 from utils.config import Config
-from utils.db_manager import DatabaseManager
 from scraper.parsers import extract_chapter_info
 
 
@@ -293,19 +287,41 @@ class BannerDisplay:
 class MangaViewPanel(tk.Frame):
     """Panel for viewing downloaded manga with banners, info, and chapters."""
     
-    def __init__(self, parent, db_manager: DatabaseManager):
+    def __init__(self, parent, manga_controller):
         super().__init__(parent, bg=Config.UI_COLORS['BLACK'])
-        self.db_manager = db_manager
+        
+        # Validate controller type during initialization
+        expected_methods = ['load_downloaded_manga', 'select_manga', 'get_manga_by_folder_name', 'refresh_manga_data']
+        controller_type = type(manga_controller)
+        
+        # Check if this is the expected controller type
+        missing_methods = [method for method in expected_methods if not hasattr(manga_controller, method)]
+        if missing_methods:
+            print(f"ERROR: Controller {controller_type} is missing methods: {missing_methods}")
+            print("Expected a MangaController but received a different object!")
+            print(f"Available methods: {[attr for attr in dir(manga_controller) if not attr.startswith('_')]}")
+            
+            # This is a critical error - wrong controller type passed
+            raise TypeError(f"Expected MangaController, got {controller_type}")
+        
+        self.manga_controller = manga_controller
         self.current_manga: Optional[Manga] = None
-        self.on_manga_selected: Optional[Callable] = None
+        self.current_chapters: List[Chapter] = []  # Initialize chapter list
         self.banner_image = None
-        self.current_manga_folder = None
-        self.downloaded_chapters = set()
-        self.manga_display_names = {}
-        self.chapter_links = []
+        
+        # Set up controller event handlers
+        self.setup_controller_events()
         
         self.setup_ui()
-        self.load_downloaded_manga()
+    
+    def setup_controller_events(self):
+        """Set up event handlers for the controller."""
+        # Connect controller callbacks to UI update methods
+        self.manga_controller.on_manga_loaded = self.on_manga_loaded
+        self.manga_controller.on_manga_selected = self.on_manga_selected_internal
+        self.manga_controller.on_chapters_loaded = self.on_chapters_loaded
+        self.manga_controller.on_banner_loaded = self.on_banner_loaded
+        self.manga_controller.on_error = self.on_controller_error
         
     def setup_ui(self):
         """Set up the UI components."""
@@ -349,6 +365,87 @@ class MangaViewPanel(tk.Frame):
             bg=Config.UI_COLORS['BLACK']
         )
         status_label.pack(fill=tk.X, pady=(0, 5))
+    
+    # Controller event handlers
+    def on_manga_loaded(self, manga_list: List[Manga]) -> None:
+        """Handle manga list loaded from controller."""
+        # Update dropdown menu
+        menu = self.manga_menu['menu']
+        menu.delete(0, 'end')
+        
+        if not manga_list:
+            self.manga_var.set("")
+            self.clear_manga_display()
+            return
+        
+        # Add manga options
+        for manga in manga_list:
+            menu.add_command(
+                label=manga.display_title,
+                command=lambda m=manga: self.on_manga_select_from_menu(m)
+            )
+        
+        # Set first manga as default if none selected
+        if manga_list and not self.current_manga:
+            self.manga_var.set(manga_list[0].display_title)
+            self.manga_controller.select_manga(manga_list[0])
+    
+    def on_manga_selected_internal(self, manga: Optional[Manga]) -> None:
+        """Handle manga selection from controller."""
+        self.current_manga = manga
+        if manga:
+            self.manga_var.set(manga.display_title)
+            self.update_manga_info(manga)
+        else:
+            self.clear_manga_display()
+    
+    def on_chapters_loaded(self, chapters: List[Chapter]) -> None:
+        """Handle chapters loaded from controller."""
+        self.downloaded_listbox.delete(0, tk.END)
+        
+        # Store chapters for later use (folder opening, etc.)
+        self.current_chapters = chapters
+        
+        for chapter in chapters:
+            display_text = f"Episode {chapter.episode_no}: {chapter.title}"
+            if chapter.is_downloaded:
+                display_text += " ✓ Downloaded"
+            self.downloaded_listbox.insert(tk.END, display_text)
+    
+    def on_banner_loaded(self, bg_path: Optional[str], fg_path: Optional[str]) -> None:
+        """Handle banner loaded from controller."""
+        if bg_path or fg_path:
+            self.display_layered_banner(bg_path, fg_path)
+        else:
+            # No banner files exist - show helpful message
+            if self.current_manga:
+                self.banner_label.config(
+                    text=f"No banner available for {self.current_manga.display_title}\nBanners are downloaded when fetching new manga", 
+                    font=("Helvetica", 10, "bold"), 
+                    fg=Config.UI_COLORS['WHITE'],
+                    justify=tk.CENTER
+                )
+            else:
+                self.banner_label.config(
+                    text="No banner available", 
+                    font=("Helvetica", 11, "bold"), 
+                    fg=Config.UI_COLORS['WHITE']
+                )
+    
+    def on_controller_error(self, error_message: str) -> None:
+        """Handle errors from controller."""
+        self.downloaded_status_var.set(f"Error: {error_message}")
+    
+    # UI event handlers
+    def on_manga_select_from_menu(self, manga: Manga) -> None:
+        """Handle manga selection from dropdown menu."""
+        self.manga_controller.select_manga(manga)
+    
+    def on_manga_select_legacy(self, folder_name: str) -> None:
+        """Handle manga selection (legacy method for compatibility)."""
+        manga = self.manga_controller.get_manga_by_folder_name(folder_name)
+        if manga:
+            self.manga_controller.select_manga(manga)
     
     def setup_banner(self):
         """Set up banner display."""
@@ -457,8 +554,29 @@ class MangaViewPanel(tk.Frame):
         
         refresh_btn = tk.Button(selection_frame, text="Refresh List", font=FONT, 
                                bg=Config.UI_COLORS['HIGHLIGHT'], fg=Config.UI_COLORS['BLACK'], 
-                               command=self.load_downloaded_manga)
+                               command=self._safe_load_downloaded_manga)
         refresh_btn.pack(side=tk.LEFT, padx=5)
+    
+    def _safe_load_downloaded_manga(self):
+        """Safely call load_downloaded_manga with validation."""
+        try:
+            # Debug: Check what type of object we have
+            controller_type = type(self.manga_controller)
+            print(f"DEBUG: manga_controller type is {controller_type}")
+            
+            # Check if it has the method
+            if not hasattr(self.manga_controller, 'load_downloaded_manga'):
+                print(f"ERROR: {controller_type} does not have load_downloaded_manga method!")
+                print("Available methods:", [attr for attr in dir(self.manga_controller) if not attr.startswith('_')])
+                return
+            
+            # Call the method
+            self.manga_controller.load_downloaded_manga()
+            
+        except Exception as e:
+            print(f"Error in _safe_load_downloaded_manga: {e}")
+            import traceback
+            traceback.print_exc()
     
     def setup_chapter_list(self):
         """Set up chapter list."""
@@ -515,163 +633,19 @@ class MangaViewPanel(tk.Frame):
                             command=self.view_chapter_comments)
         view_btn.pack(side=tk.LEFT, padx=5)
     
-    def load_downloaded_manga(self):
-        """Load downloaded manga from filesystem."""
-        self.manga_var.set("")
-        menu = self.manga_menu["menu"]
-        menu.delete(0, "end")
-        
-        manga_folders = []
-        self.manga_display_names = {}
-        
-        output_dir = Config.DOWNLOAD_FOLDER
-        
-        if os.path.exists(output_dir):
-            for name in os.listdir(output_dir):
-                path = os.path.join(output_dir, name)
-                if os.path.isdir(path) and name.startswith("webtoon_"):
-                    # Check if manga has downloaded episodes
-                    has_episode = False
-                    try:
-                        for sub in os.listdir(path):
-                            if os.path.isdir(os.path.join(path, sub)) and sub.lower().startswith("episode_"):
-                                has_episode = True
-                                break
-                    except Exception:
-                        continue
-                    
-                    if has_episode:
-                        # Get display name from manga_info.json
-                        info_json = os.path.join(path, "manga_info.json")
-                        display_name = name
-                        if os.path.exists(info_json):
-                            try:
-                                with open(info_json, "r", encoding="utf-8") as f:
-                                    info = json.load(f)
-                                    display_name = info.get("display_name", name)
-                            except Exception:
-                                pass
-                        
-                        manga_folders.append((name, display_name))
-                        self.manga_display_names[name] = display_name
-        
-        # Update dropdown menu
-        for folder, display_name in manga_folders:
-            menu.add_command(label=display_name, command=lambda f=folder: self.on_manga_select(f))
-        
-        if manga_folders:
-            self.manga_var.set(manga_folders[0][0])
-            self.on_manga_select(manga_folders[0][0])
-        else:
-            self.downloaded_listbox.delete(0, tk.END)
-            self.manga_var.set("")
-            self.clear_banner()
-            self.clear_manga_info()
-    
-    def on_manga_select(self, folder):
-        """Handle manga selection."""
-        self.manga_var.set(folder)
-        self.current_manga_folder = os.path.join(Config.DOWNLOAD_FOLDER, folder)
-        self.chapter_links = []
-        self.downloaded_chapters = set()
-        self.downloaded_listbox.delete(0, tk.END)
-        
-        # Load banner image
-        self.load_banner_image(folder)
-        
-        # Update banner title
-        display_name = self.manga_display_names.get(folder, folder)
-        self.banner_title_label.config(text=display_name)
-        
-        # Load manga info
-        self.load_manga_info(folder)
-        
-        # Load chapter links
-        chapter_json = os.path.join(self.current_manga_folder, "chapter_links.json")
-        if os.path.exists(chapter_json):
-            try:
-                with open(chapter_json, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.chapter_links = data.get("chapters", [])
-            except Exception:
-                self.chapter_links = []
-        else:
-            self.chapter_links = self.reconstruct_chapter_links_from_folders(self.current_manga_folder)
-        
-        # Load downloaded chapters
-        self.load_downloaded_chapters()
-        
-        # Populate chapter list
-        for link in self.chapter_links:
-            ep, title = extract_chapter_info(link)
-            display = f"Episode {ep}: {title}"
-            if ep in self.downloaded_chapters:
-                display += " (downloaded)"
-            self.downloaded_listbox.insert(tk.END, display)
-        
-        # Update status
-        display_name = self.manga_display_names.get(folder, folder)
-        self.downloaded_status_var.set(f"Loaded {len(self.chapter_links)} chapters from {display_name}.")
-        
-        # Update chapter counts
-        downloaded_count = len(self.downloaded_chapters)
-        total_count = len(self.chapter_links)
-        self.manga_downloaded_label.config(text=f"{downloaded_count} chapters")
-        self.manga_total_label.config(text=f"{total_count} chapters")
-    
-    def load_banner_image(self, folder):
-        """Load and display banner image for selected manga."""
-        # Clear current banner
-        self.banner_label.config(image="", text="")
-        self.banner_image = None
-        
-        if not folder:
+    def on_manga_select(self, selected_display_title):
+        """Handle manga selection from dropdown menu."""
+        if not selected_display_title:
             return
-        
-        manga_dir = os.path.join(Config.DOWNLOAD_FOLDER, folder)
-        
-        # Check for local banner files
-        banner_bg_file = os.path.join(manga_dir, "banner_bg.jpg")
-        banner_fg_file = os.path.join(manga_dir, "banner_fg.png")
-        
-        has_bg = os.path.exists(banner_bg_file)
-        has_fg = os.path.exists(banner_fg_file)
-        
-        # If local files exist, display them
-        if has_bg or has_fg:
-            self.display_layered_banner(
-                banner_bg_file if has_bg else None,
-                banner_fg_file if has_fg else None
-            )
-        else:
-            # Check for banner URLs in manga_info.json
-            info_json = os.path.join(manga_dir, "manga_info.json")
-            if os.path.exists(info_json):
-                try:
-                    with open(info_json, "r", encoding="utf-8") as f:
-                        info = json.load(f)
-                        banner_bg_url = info.get("banner_bg_url")
-                        banner_fg_url = info.get("banner_fg_url")
-                        
-                        if banner_bg_url or banner_fg_url:
-                            self.downloaded_status_var.set("Downloading banner images...")
-                            threading.Thread(
-                                target=self._download_and_display_banner,
-                                args=(banner_bg_url, banner_fg_url, banner_bg_file, banner_fg_file),
-                                daemon=True
-                            ).start()
-                            return
-                except Exception:
-                    pass
             
-            # Show placeholder text
-            display_name = self.manga_display_names.get(folder, folder)
-            self.banner_label.config(
-                text=display_name,
-                font=("Helvetica", 16, "bold"),
-                fg=Config.UI_COLORS['WHITE'],
-                image=""
-            )
+        # Find manga by display title and delegate to controller
+        for manga in self.manga_controller.downloaded_manga:
+            if manga.display_title == selected_display_title:
+                self.manga_controller.select_manga(manga)
+                return
+        
+        # If not found, clear display
+        self.clear_manga_display()
     
     def display_layered_banner(self, bg_path, fg_path):
         """Display layered banner with background and foreground images."""
@@ -830,51 +804,6 @@ class MangaViewPanel(tk.Frame):
         finally:
             self.after(100, lambda: self.downloaded_status_var.set("Ready."))
     
-    def load_manga_info(self, folder):
-        """Load and display manga metadata."""
-        if not folder:
-            self.clear_manga_info()
-            return
-        
-        # Default values
-        author = "Unknown"
-        rating = "N/A"
-        
-        # Try to get info from database first
-        match = re.match(r"webtoon_(\d+)_(.*)", folder)
-        if match:
-            title_no = match.group(1)
-            
-            try:
-                # Query database for manga info
-                manga = self.db_manager.get_manga_by_title_no(title_no)
-                if manga:
-                    if manga.author:
-                        author = self._clean_text(manga.author)
-                    if manga.grade:
-                        rating = f"{manga.grade:.1f}/5.0"
-            except Exception as e:
-                print(f"Error querying database: {e}")
-        
-        # If database query failed, try manga_info.json
-        if author == "Unknown" or rating == "N/A":
-            manga_dir = os.path.join(Config.DOWNLOAD_FOLDER, folder)
-            info_json = os.path.join(manga_dir, "manga_info.json")
-            if os.path.exists(info_json):
-                try:
-                    with open(info_json, "r", encoding="utf-8") as f:
-                        info = json.load(f)
-                        if "author" in info and info["author"]:
-                            author = self._clean_text(info["author"])
-                        if "grade" in info and info["grade"]:
-                            rating = f"{float(info['grade']):.1f}/5.0"
-                except Exception as e:
-                    print(f"Error loading manga info: {e}")
-        
-        # Update info labels
-        self.manga_author_label.config(text=author)
-        self.manga_rating_label.config(text=rating)
-    
     def _clean_text(self, text):
         """Clean text by removing extra whitespace, newlines, and tabs."""
         if not text:
@@ -903,84 +832,26 @@ class MangaViewPanel(tk.Frame):
         self.banner_title_label.config(text="")
         self.banner_image = None
     
-    def load_downloaded_chapters(self):
-        """Load set of downloaded chapter numbers."""
-        self.downloaded_chapters = set()
-        if self.current_manga_folder:
-            record = os.path.join(self.current_manga_folder, "downloaded.json")
-            if os.path.exists(record):
-                try:
-                    with open(record, "r", encoding="utf-8") as f:
-                        self.downloaded_chapters = set(json.load(f))
-                except Exception:
-                    self.downloaded_chapters = set()
-    
-    def reconstruct_chapter_links_from_folders(self, manga_dir):
-        """Reconstruct chapter links from existing episode folders."""
-        links = []
-        if not os.path.exists(manga_dir):
-            return links
-        
-        for name in os.listdir(manga_dir):
-            if name.lower().startswith("episode_") and os.path.isdir(os.path.join(manga_dir, name)):
-                m = re.match(r"Episode_(\d+)_([\w\- ]+)", name, re.IGNORECASE)
-                if m:
-                    ep = m.group(1)
-                    title = m.group(2).replace('_', ' ')
-                    links.append(f"episode-dummy-url?episode_no={ep}")
-        return links
-    
     def on_chapter_select(self, event):
-        """Display comment summary when chapter is selected."""
+        """Handle chapter selection to show comment summary."""
         selection = self.downloaded_listbox.curselection()
-        if not selection:
+        if not selection or not self.current_manga:
+            self.update_comment_summary("")
             return
         
-        idx = selection[0]
-        if idx >= len(self.chapter_links):
-            return
-        
-        link = self.chapter_links[idx]
-        ep, title = extract_chapter_info(link)
-        
-        # Find episode folder
-        found_folder = None
-        for name in os.listdir(self.current_manga_folder):
-            if name.lower().startswith(f"episode_{ep}") and os.path.isdir(os.path.join(self.current_manga_folder, name)):
-                found_folder = os.path.join(self.current_manga_folder, name)
-                break
-        
-        if not found_folder:
-            self.update_comment_summary("No comment summary available for this chapter.")
-            return
-        
-        # Check for comments file
-        comments_file = os.path.join(found_folder, f"comments_episode_{ep}.txt")
-        if not os.path.exists(comments_file):
-            self.update_comment_summary("No comments have been downloaded for this chapter.")
-            return
-        
-        # Extract summary from comments file
         try:
-            with open(comments_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                summary = ""
-                in_summary = False
-                for line in lines:
-                    if line.strip() == "SUMMARY:":
-                        in_summary = True
-                        continue
-                    elif in_summary and line.strip() == "--------------------------------------------------":
-                        break
-                    elif in_summary:
-                        summary += line
+            chapter_index = selection[0]
+            chapter = self.current_manga.chapters[chapter_index]
+            
+            # Get comment summary from controller
+            summary = self.manga_controller.get_chapter_comment_summary(chapter)
+            if summary:
+                self.update_comment_summary(summary)
+            else:
+                self.update_comment_summary("No comments available for this chapter.")
                 
-                if summary:
-                    self.update_comment_summary(summary.strip())
-                else:
-                    self.update_comment_summary("Comment summary not found in file.")
-        except Exception as e:
-            self.update_comment_summary(f"Error reading comment file: {e}")
+        except (IndexError, AttributeError):
+            self.update_comment_summary("Error loading chapter comments.")
     
     def update_comment_summary(self, text):
         """Update comment summary text widget."""
@@ -989,6 +860,28 @@ class MangaViewPanel(tk.Frame):
         self.comment_summary_text.insert(tk.END, text)
         self.comment_summary_text.config(state=tk.DISABLED)
     
+    def update_manga_info(self, manga: Manga) -> None:
+        """Update manga info display."""
+        # Update manga info labels
+        self.manga_author_label.config(text=manga.author or "Unknown")
+        self.manga_rating_label.config(text=f"{manga.grade:.1f}" if manga.grade else "N/A")
+        self.manga_downloaded_label.config(text=str(manga.downloaded_chapters_count))
+        self.manga_total_label.config(text=str(manga.num_chapters))
+        
+        # Update banner title
+        self.banner_title_label.config(text=manga.display_title)
+    
+    def clear_manga_display(self) -> None:
+        """Clear all manga display elements."""
+        self.manga_author_label.config(text="")
+        self.manga_rating_label.config(text="")
+        self.manga_downloaded_label.config(text="")
+        self.manga_total_label.config(text="")
+        self.banner_title_label.config(text="")
+        self.downloaded_listbox.delete(0, tk.END)
+        self.update_comment_summary("")
+        self.clear_banner()
+    
     def open_selected_chapter_folder(self):
         """Open selected chapter folder in file explorer."""
         selection = self.downloaded_listbox.curselection()
@@ -996,98 +889,124 @@ class MangaViewPanel(tk.Frame):
             messagebox.showerror("Error", "No chapter selected.")
             return
         
-        idx = selection[0]
-        if idx >= len(self.chapter_links):
-            messagebox.showerror("Error", "Invalid chapter selection.")
+        if not self.current_manga:
+            messagebox.showerror("Error", "No manga selected.")
+            return
+            
+        if not hasattr(self, 'current_chapters') or not self.current_chapters:
+            messagebox.showerror("Error", "No chapters loaded.")
             return
         
-        link = self.chapter_links[idx]
-        ep, title = extract_chapter_info(link)
-        
-        # Find episode folder
-        found_folder = None
-        for name in os.listdir(self.current_manga_folder):
-            if name.lower().startswith(f"episode_{ep}") and os.path.isdir(os.path.join(self.current_manga_folder, name)):
-                found_folder = os.path.join(self.current_manga_folder, name)
-                break
-        
-        if not found_folder:
-            messagebox.showerror("Error", f"Could not find folder for Episode {ep}.")
-            return
-        
-        # Open folder in system file explorer
         try:
-            if platform.system() == "Windows":
-                os.startfile(found_folder)
-            elif platform.system() == "Darwin":
-                subprocess.Popen(["open", found_folder])
+            chapter_index = selection[0]
+            if chapter_index >= len(self.current_chapters):
+                messagebox.showerror("Error", "Invalid chapter selection.")
+                return
+                
+            chapter = self.current_chapters[chapter_index]
+            
+            # Check if chapter is actually downloaded
+            if not chapter.is_downloaded:
+                messagebox.showwarning(
+                    "Chapter Not Downloaded", 
+                    f"Episode {chapter.episode_no} has not been downloaded yet.\n\n"
+                    f"You can only open folders for episodes that have been downloaded. "
+                    f"Download this episode first using the Download Manga tab."
+                )
+                return
+            
+            # Use controller to open chapter folder
+            if self.manga_controller.open_chapter_folder(chapter):
+                self.downloaded_status_var.set(f"Opened folder for Episode {chapter.episode_no}")
             else:
-                subprocess.Popen(["xdg-open", found_folder])
+                messagebox.showerror("Error", f"Could not open folder for Episode {chapter.episode_no}")
+                
         except Exception as e:
-            messagebox.showerror("Error", f"Could not open folder: {e}")
+            messagebox.showerror("Error", f"Failed to open chapter folder: {e}")
     
     def view_chapter_comments(self):
-        """Open comments file for selected chapter."""
+        """View comments for selected chapter."""
         selection = self.downloaded_listbox.curselection()
         if not selection:
             messagebox.showerror("Error", "No chapter selected.")
             return
         
-        idx = selection[0]
-        if idx >= len(self.chapter_links):
-            messagebox.showerror("Error", "Invalid chapter selection.")
+        if not self.current_manga:
+            messagebox.showerror("Error", "No manga selected.")
+            return
+            
+        if not hasattr(self, 'current_chapters') or not self.current_chapters:
+            messagebox.showerror("Error", "No chapters loaded.")
             return
         
-        link = self.chapter_links[idx]
-        ep, title = extract_chapter_info(link)
-        
-        # Find episode folder
-        found_folder = None
-        for name in os.listdir(self.current_manga_folder):
-            if name.lower().startswith(f"episode_{ep}") and os.path.isdir(os.path.join(self.current_manga_folder, name)):
-                found_folder = os.path.join(self.current_manga_folder, name)
-                break
-        
-        if not found_folder:
-            messagebox.showerror("Error", f"Could not find folder for Episode {ep}.")
-            return
-        
-        # Check for comments file
-        comments_file = os.path.join(found_folder, f"comments_episode_{ep}.txt")
-        if not os.path.exists(comments_file):
-            messagebox.showerror("Error", f"No comments file found for Episode {ep}.")
-            return
-        
-        # Open comments file in default text editor
         try:
-            if platform.system() == "Windows":
-                os.startfile(comments_file)
-            elif platform.system() == "Darwin":
-                subprocess.Popen(["open", comments_file])
-            else:
-                subprocess.Popen(["xdg-open", comments_file])
+            chapter_index = selection[0]
+            if chapter_index >= len(self.current_chapters):
+                messagebox.showerror("Error", "Invalid chapter selection.")
+                return
+                
+            chapter = self.current_chapters[chapter_index]
+            
+            # Check if chapter is actually downloaded
+            if not chapter.is_downloaded:
+                messagebox.showwarning(
+                    "Chapter Not Downloaded", 
+                    f"Episode {chapter.episode_no} has not been downloaded yet.\n\n"
+                    f"Comments are only available for episodes that have been downloaded. "
+                    f"Download this episode first using the Download Manga tab."
+                )
+                return
+            
+            # Get comments from controller
+            comments = self.manga_controller.get_chapter_comments(chapter)
+            if not comments:
+                messagebox.showinfo("No Comments", f"No comments found for Episode {chapter.episode_no}")
+                return
+            
+            # Create comments display window
+            comments_window = tk.Toplevel(self)
+            comments_window.title(f"Comments - Episode {chapter.episode_no}: {chapter.title}")
+            comments_window.geometry("600x400")
+            comments_window.configure(bg=Config.UI_COLORS['BLACK'])
+            
+            # Create text widget with scrollbar
+            text_frame = tk.Frame(comments_window, bg=Config.UI_COLORS['BLACK'])
+            text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            text_widget = tk.Text(text_frame, font=Config.UI_FONTS['DEFAULT'],
+                                 bg=Config.UI_COLORS['WHITE'], fg=Config.UI_COLORS['BLACK'],
+                                 wrap=tk.WORD)
+            scrollbar = tk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+            text_widget.configure(yscrollcommand=scrollbar.set)
+            
+            text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            # Insert comments
+            text_widget.insert(tk.END, comments)
+            text_widget.config(state=tk.DISABLED)
+            
         except Exception as e:
-            messagebox.showerror("Error", f"Could not open comments file: {e}")
+            messagebox.showerror("Error", f"Failed to load comments: {e}")
     
     def refresh_banner(self):
         """Refresh banner for current manga."""
-        current_folder = self.manga_var.get()
-        if not current_folder:
+        if not self.current_manga:
             messagebox.showinfo("Info", "Please select a manga first.")
             return
         
         # Remove existing banner files to force re-download
-        manga_dir = os.path.join(Config.DOWNLOAD_FOLDER, current_folder)
-        banner_bg_file = os.path.join(manga_dir, "banner_bg.jpg")
-        banner_fg_file = os.path.join(manga_dir, "banner_fg.png")
+        manga_folder = Config.get_manga_folder(self.current_manga.title_no, self.current_manga.series_name)
+        bg_path = manga_folder / "banner_bg.jpg"
+        fg_path = manga_folder / "banner_fg.png"
         
         try:
-            if os.path.exists(banner_bg_file):
-                os.remove(banner_bg_file)
-            if os.path.exists(banner_fg_file):
-                os.remove(banner_fg_file)
+            if bg_path.exists():
+                bg_path.unlink()
+            if fg_path.exists():
+                fg_path.unlink()
         except Exception as e:
             print(f"Error removing banner files: {e}")
         
-        # Reload banner
-        self.load_banner_image(current_folder) 
+        # Trigger controller to reload banner
+        self.manga_controller.select_manga(self.current_manga) 

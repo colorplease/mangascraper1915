@@ -4,20 +4,11 @@ Download panel for fetching and downloading manga chapters.
 
 import tkinter as tk
 from tkinter import messagebox, ttk, filedialog
-import threading
-import os
-import time
-from typing import Optional, Callable, List
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Optional, List
 
 from models.manga import Manga
 from models.chapter import Chapter
-from scraper.webtoon_client import WebtoonClient
-from scraper.parsers import create_manga_from_page, create_chapters_from_links, parse_chapter_links
-from scraper.downloader import DownloadManager, DownloadQueue
-from scraper.comment_analyzer import CommentAnalyzer
 from utils.config import Config
-from utils.db_manager import DatabaseManager
 
 
 class AnimatedProgressBar(ttk.Progressbar):
@@ -62,25 +53,54 @@ class AnimatedProgressBar(ttk.Progressbar):
 class DownloadPanel(tk.Frame):
     """Panel for downloading manga chapters."""
     
-    def __init__(self, parent, db_manager: DatabaseManager):
+    def __init__(self, parent, download_controller):
         super().__init__(parent, bg=Config.UI_COLORS['BLACK'])
-        self.db_manager = db_manager
+        
+        # Validate controller type during initialization
+        expected_methods = ['fetch_chapters', 'resume_downloads', 'download_chapters', 'get_downloaded_chapters']
+        controller_type = type(download_controller)
+        
+        # Check if this is the expected controller type
+        missing_methods = [method for method in expected_methods if not hasattr(download_controller, method)]
+        if missing_methods:
+            print(f"ERROR: Controller {controller_type} is missing methods: {missing_methods}")
+            print("Expected a DownloadController but received a different object!")
+            print(f"Available methods: {[attr for attr in dir(download_controller) if not attr.startswith('_')]}")
+            
+            # This is a critical error - wrong controller type passed
+            raise TypeError(f"Expected DownloadController, got {controller_type}. Missing methods: {missing_methods}")
+        
+        self.download_controller = download_controller
         self.current_manga: Optional[Manga] = None
         self.chapter_links: List[str] = []
         self.downloaded_chapters: set = set()
         self.output_dir = str(Config.get_downloads_dir())
         self._animated_status_running = False
-        self.on_download_complete: Optional[Callable] = None
         
-        # Create clients
-        self.webtoon_client = WebtoonClient(use_selenium=True)
-        self.download_manager = DownloadManager(
-            use_selenium=True,
-            extract_comments=Config.EXTRACT_COMMENTS_DEFAULT
-        )
-        self.comment_analyzer = CommentAnalyzer()
+        # Set up controller event handlers
+        self.setup_controller_events()
         
         self.setup_ui()
+    
+    def setup_controller_events(self):
+        """Set up event handlers for the controller."""
+        # Validate controller type before setting event handlers
+        if not hasattr(self.download_controller, 'on_chapters_fetched'):
+            print(f"WARNING: Controller {type(self.download_controller)} doesn't have expected event attributes!")
+            print("This suggests the wrong object was passed as download_controller")
+            return
+            
+        try:
+            self.download_controller.on_chapters_fetched = self.on_chapters_fetched
+            self.download_controller.on_download_progress = self.on_download_progress
+            self.download_controller.on_download_complete = self.on_download_complete_internal
+            self.download_controller.on_error = self.on_controller_error
+            self.download_controller.on_status_update = self.on_status_update
+        except Exception as e:
+            print(f"Error setting up controller events: {e}")
+            print(f"Controller type: {type(self.download_controller)}")
+            import traceback
+            traceback.print_exc()
         
     def setup_ui(self):
         """Set up the UI components."""
@@ -181,7 +201,7 @@ class DownloadPanel(tk.Frame):
         
         resume_btn = tk.Button(download_frame, text="Resume Downloads", 
                               font=Config.UI_FONTS['DEFAULT'], bg="#ff9900", 
-                              fg=Config.UI_COLORS['BLACK'], command=self.resume_downloads)
+                              fg=Config.UI_COLORS['BLACK'], command=self._safe_resume_downloads)
         resume_btn.pack(side=tk.LEFT, padx=5)
     
     def setup_progress(self):
@@ -198,113 +218,32 @@ class DownloadPanel(tk.Frame):
             messagebox.showerror("Error", "Please enter a Webtoon URL.")
             return
         
-        self.status_var.set("Fetching chapters...")
         self.progress_bar.start_marquee()
-        self._start_animated_status("Fetching chapters")
         self.chapter_listbox.delete(0, tk.END)
         
-        threading.Thread(target=self._fetch_chapters_thread, args=(url,), daemon=True).start()
+        # Delegate to controller
+        self._safe_fetch_chapters(url)
     
-    def _fetch_chapters_thread(self, url):
-        """Fetch chapters in background thread."""
+    def _safe_fetch_chapters(self, url: str):
+        """Safely call fetch_chapters with validation."""
         try:
-            # Normalize URL
-            normalized_url = self.webtoon_client.normalize_list_url(url)
+            # Debug: Check what type of object we have
+            controller_type = type(self.download_controller)
+            print(f"DEBUG: download_controller type is {controller_type}")
             
-            # Get page content
-            soup = self.webtoon_client.get_page(normalized_url)
-            if not soup:
-                self.status_var.set("Failed to fetch page.")
-                self.progress_bar.stop_marquee()
-                self._stop_animated_status()
+            # Check if it has the method
+            if not hasattr(self.download_controller, 'fetch_chapters'):
+                print(f"ERROR: {controller_type} does not have fetch_chapters method!")
+                print("Available methods:", [attr for attr in dir(self.download_controller) if not attr.startswith('_')])
                 return
             
-            # Create manga object from page
-            manga = create_manga_from_page(soup, normalized_url)
-            
-            # Get all chapter links
-            all_pages = self.webtoon_client.get_paginated_content(
-                normalized_url.split('?')[0], manga.title_no
-            )
-            
-            chapter_links = []
-            for page_soup in all_pages:
-                links = parse_chapter_links(page_soup)
-                chapter_links.extend(links)
-            
-            # Create chapter objects
-            chapters = create_chapters_from_links(chapter_links)
-            manga.chapters = chapters
-            manga.num_chapters = len(chapters)
-            
-            self.current_manga = manga
-            self.chapter_links = chapter_links
-            
-            # Save manga info
-            manga_folder = Config.get_manga_folder(manga.title_no, manga.series_name)
-            manga_folder.mkdir(exist_ok=True)
-            
-            # Save manga info to JSON
-            info_data = manga.to_dict()
-            info_file = manga_folder / "manga_info.json"
-            with open(info_file, 'w', encoding='utf-8') as f:
-                import json
-                json.dump(info_data, f, indent=2)
-            
-            # Save chapter links
-            chapter_data = {
-                "title_no": manga.title_no,
-                "series_name": manga.series_name,
-                "total_chapters": len(chapter_links),
-                "chapters": chapter_links
-            }
-            chapter_file = manga_folder / "chapter_links.json"
-            with open(chapter_file, 'w', encoding='utf-8') as f:
-                import json
-                json.dump(chapter_data, f, indent=2)
-            
-            # Save to database
-            self.db_manager.save_manga(manga)
-            
-            # Load downloaded chapters
-            self._load_downloaded_chapters(str(manga_folder))
-            
-            # Update UI
-            self.after(0, self._update_chapter_list)
-            
-            self.status_var.set(f"Found {len(chapter_links)} chapters.")
-            self.progress_bar.stop_marquee()
-            self._stop_animated_status()
+            # Call the method
+            self.download_controller.fetch_chapters(url)
             
         except Exception as e:
-            self.status_var.set(f"Error: {e}")
-            self.progress_bar.stop_marquee()
-            self._stop_animated_status()
-    
-    def _update_chapter_list(self):
-        """Update the chapter list display."""
-        if not self.current_manga:
-            return
-        
-        self.chapter_listbox.delete(0, tk.END)
-        for chapter in self.current_manga.chapters:
-            display_text = f"Episode {chapter.episode_no}: {chapter.title}"
-            if chapter.episode_no in self.downloaded_chapters:
-                display_text += " (downloaded)"
-            self.chapter_listbox.insert(tk.END, display_text)
-    
-    def _load_downloaded_chapters(self, manga_dir: str):
-        """Load downloaded chapters from file."""
-        self.downloaded_chapters = set()
-        downloaded_file = os.path.join(manga_dir, "downloaded.json")
-        
-        if os.path.exists(downloaded_file):
-            try:
-                import json
-                with open(downloaded_file, 'r', encoding='utf-8') as f:
-                    self.downloaded_chapters = set(json.load(f))
-            except Exception:
-                pass
+            print(f"Error in _safe_fetch_chapters: {e}")
+            import traceback
+            traceback.print_exc()
     
     def download_selected(self):
         """Download selected chapters."""
@@ -317,125 +256,24 @@ class DownloadPanel(tk.Frame):
             messagebox.showerror("Error", "No chapters selected.")
             return
         
-        # Get selected chapters that aren't downloaded
+        # Get selected chapters
         selected_chapters = []
         for i in selected_indices:
-            chapter = self.current_manga.chapters[i]
-            if chapter.episode_no not in self.downloaded_chapters:
-                selected_chapters.append(chapter)
+            if i < len(self.current_manga.chapters):
+                selected_chapters.append(self.current_manga.chapters[i])
         
         if not selected_chapters:
-            messagebox.showinfo("Info", "All selected chapters are already downloaded.")
+            messagebox.showinfo("Info", "No valid chapters selected.")
             return
-        
-        manga_folder = Config.get_manga_folder(self.current_manga.title_no, self.current_manga.series_name)
         
         self.progress_bar.set_max(len(selected_chapters))
         self.progress_bar.set_value(0)
         self.progress_bar.stop_marquee()
-        self._start_animated_status("Downloading chapters")
         
-        threading.Thread(target=self._download_chapters_thread, 
-                        args=(selected_chapters, str(manga_folder)), daemon=True).start()
+        # Delegate to controller
+        self.download_controller.download_chapters(selected_chapters)
     
-    def _download_chapters_thread(self, chapters: List[Chapter], manga_dir: str):
-        """Download chapters in background thread."""
-        try:
-            # Create download progress callback
-            def progress_callback(progress):
-                self.after(0, lambda: self.progress_bar.set_value(progress.completed_items))
-            
-            # Download chapters
-            results = self.download_manager.download_manga_chapters(
-                self.current_manga, chapters, manga_dir, progress_callback
-            )
-            
-            # Update downloaded chapters list
-            for chapter in chapters:
-                if results.get(chapter.url, 0) > 0:
-                    self.downloaded_chapters.add(chapter.episode_no)
-            
-            # Save downloaded chapters
-            self._save_downloaded_chapters(manga_dir)
-            
-            # Check success
-            all_successful = all(count > 0 for count in results.values())
-            total_images = sum(results.values())
-            
-            if all_successful:
-                self.status_var.set(f"Download complete! Downloaded {total_images} images across {len(chapters)} chapters.")
-                messagebox.showinfo("Success", f"Downloaded {total_images} images to {manga_dir}")
-            else:
-                failed_count = len([c for c in results.values() if c == 0])
-                self.status_var.set(f"Partial download. {failed_count} chapters failed.")
-                messagebox.showwarning("Partial Success", 
-                    f"Downloaded {total_images} images.\n{failed_count} chapters failed.")
-            
-            self.progress_bar.set_value(len(chapters))
-            self._stop_animated_status()
-            
-            # Update UI
-            self.after(0, self._update_chapter_list)
-            
-            # Notify completion
-            if self.on_download_complete:
-                self.on_download_complete()
-                
-        except Exception as e:
-            self.status_var.set(f"Download error: {e}")
-            self.progress_bar.stop_marquee()
-            self._stop_animated_status()
-    
-    def _save_downloaded_chapters(self, manga_dir: str):
-        """Save downloaded chapters to file."""
-        downloaded_file = os.path.join(manga_dir, "downloaded.json")
-        import json
-        with open(downloaded_file, 'w', encoding='utf-8') as f:
-            json.dump(sorted(self.downloaded_chapters), f)
-    
-    def resume_downloads(self):
-        """Resume downloads from queue."""
-        if not self.current_manga:
-            messagebox.showinfo("Info", "Please fetch chapters for a manga first.")
-            return
-        
-        manga_folder = Config.get_manga_folder(self.current_manga.title_no, self.current_manga.series_name)
-        queue = DownloadQueue(str(manga_folder))
-        
-        if not queue.exists():
-            messagebox.showinfo("Info", "No pending downloads found.")
-            return
-        
-        # Load queue and filter downloaded chapters
-        queued_urls = queue.load_queue()
-        if not queued_urls:
-            messagebox.showinfo("Info", "Download queue is empty.")
-            return
-        
-        remaining_chapters = []
-        for url in queued_urls:
-            for chapter in self.current_manga.chapters:
-                if chapter.url == url and chapter.episode_no not in self.downloaded_chapters:
-                    remaining_chapters.append(chapter)
-                    break
-        
-        if not remaining_chapters:
-            queue.clear_queue()
-            messagebox.showinfo("Info", "All queued chapters are already downloaded.")
-            return
-        
-        # Confirm resume
-        result = messagebox.askyesno("Resume Downloads", 
-            f"Found {len(remaining_chapters)} chapters in download queue.\n\nResume downloading?")
-        
-        if result:
-            self.progress_bar.set_max(len(remaining_chapters))
-            self.progress_bar.set_value(0)
-            self.progress_bar.stop_marquee()
-            self._start_animated_status("Resuming downloads")
-            
-            threading.Thread(target=self._download_chapters_thread, 
-                            args=(remaining_chapters, str(manga_folder)), daemon=True).start()
+
     
     def choose_directory(self):
         """Choose output directory."""
@@ -444,35 +282,98 @@ class DownloadPanel(tk.Frame):
             self.output_dir = directory
             self.dir_label.config(text=directory)
     
-    def on_manga_selected(self, manga: Manga):
-        """Handle manga selection from other panels."""
+    # Controller event handlers
+    def on_chapters_fetched(self, manga: Manga, chapters: List[Chapter]) -> None:
+        """Handle chapters fetched from controller."""
         self.current_manga = manga
-        if manga:
-            manga_folder = Config.get_manga_folder(manga.title_no, manga.series_name)
-            self._load_downloaded_chapters(str(manga_folder))
-            self._update_chapter_list()
-    
-    def _start_animated_status(self, base_text: str):
-        """Start animated status text."""
-        self._animated_status_running = True
+        self.chapter_links = [ch.url for ch in chapters]
+        self.downloaded_chapters = self.download_controller.get_downloaded_chapters()
         
-        def animate():
-            dots = 0
-            while self._animated_status_running:
-                self.status_var.set(base_text + "." * (dots % 4))
-                dots += 1
-                time.sleep(0.5)
-                
-        threading.Thread(target=animate, daemon=True).start()
+        # Update UI in main thread
+        self.after(0, self._update_chapter_list)
+        self.progress_bar.stop_marquee()
+        
+    def on_download_progress(self, progress) -> None:
+        """Handle download progress from controller."""
+        # Update progress bar
+        if progress.total_chapters > 0:
+            self.progress_bar.set_max(progress.total_chapters)
+            self.progress_bar.set_value(progress.completed_chapters)
+        
+        # Update status
+        if progress.current_chapter:
+            self.status_var.set(f"Downloading: {progress.current_chapter}")
+        
+    def on_download_complete_internal(self, success: bool, message: str) -> None:
+        """Handle download completion from controller."""
+        self.progress_bar.stop_marquee()
+        self.status_var.set(message)
+        
+        if success:
+            messagebox.showinfo("Success", message)
+        else:
+            messagebox.showwarning("Partial Success", message)
+        
+        # Refresh chapter list
+        self.downloaded_chapters = self.download_controller.get_downloaded_chapters()
+        self._update_chapter_list()
+        
+    def on_controller_error(self, error_message: str) -> None:
+        """Handle errors from controller."""
+        self.progress_bar.stop_marquee()
+        self.status_var.set(f"Error: {error_message}")
+        messagebox.showerror("Error", error_message)
+        
+    def on_status_update(self, message: str) -> None:
+        """Handle status updates from controller."""
+        self.status_var.set(message)
     
-    def _stop_animated_status(self):
-        """Stop animated status text."""
-        self._animated_status_running = False
+
     
     def cleanup(self):
         """Clean up resources."""
-        self._animated_status_running = False
-        if hasattr(self, 'webtoon_client'):
-            self.webtoon_client.close()
-        if hasattr(self, 'download_manager'):
-            self.download_manager.close() 
+        # Controller cleanup is handled by the main app
+        pass 
+
+    def _update_chapter_list(self):
+        """Update the chapter list display with download status."""
+        if not self.current_manga or not self.current_manga.chapters:
+            return
+            
+        # Clear current list
+        self.chapter_listbox.delete(0, tk.END)
+        
+        # Add chapters with download status
+        for i, chapter in enumerate(self.current_manga.chapters):
+            display_text = f"Episode {chapter.episode_no}: {chapter.title}"
+            
+            # Check if chapter is downloaded
+            if chapter.episode_no in self.downloaded_chapters:
+                display_text += " ✓ Downloaded"
+            
+            self.chapter_listbox.insert(tk.END, display_text)
+            
+            # Color downloaded chapters differently
+            if chapter.episode_no in self.downloaded_chapters:
+                self.chapter_listbox.itemconfig(i, {'fg': 'green'})
+
+    def _safe_resume_downloads(self):
+        """Safely call resume_downloads with validation."""
+        try:
+            # Debug: Check what type of object we have
+            controller_type = type(self.download_controller)
+            print(f"DEBUG: download_controller type is {controller_type}")
+            
+            # Check if it has the method
+            if not hasattr(self.download_controller, 'resume_downloads'):
+                print(f"ERROR: {controller_type} does not have resume_downloads method!")
+                print("Available methods:", [attr for attr in dir(self.download_controller) if not attr.startswith('_')])
+                return
+            
+            # Call the method
+            self.download_controller.resume_downloads()
+            
+        except Exception as e:
+            print(f"Error in _safe_resume_downloads: {e}")
+            import traceback
+            traceback.print_exc() 
